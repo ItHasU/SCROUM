@@ -1,0 +1,22 @@
+{
+  "name": "@scroum/build",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Résolution de dépôt de jeu et build du .scroum.zip (Node)",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@scroum/schema": "workspace:*",
+    "@scroum/validate": "workspace:*",
+    "fflate": "^0.8.3",
+    "sharp": "^0.35.5",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}

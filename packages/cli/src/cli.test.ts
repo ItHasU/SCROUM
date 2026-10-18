@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -63,18 +63,34 @@ describe('scroum validate', () => {
 });
 
 describe('autres commandes', () => {
-  it('build, edit, gen-image : non implémentées', async () => {
-    for (const c of ['build', 'edit', 'gen-image']) {
-      const t = io();
-      expect(await main([c], t)).toBe(1);
-      expect(t.stderr[0]).toMatch(/pas encore implémentée/);
-    }
-  });
   it('aide, version, commande inconnue', async () => {
     expect(await main(['--help'], io())).toBe(0);
     expect(await main(['--version'], io())).toBe(0);
     expect(await main([], io())).toBe(2);
     expect(await main(['danse'], io())).toBe(2);
     expect(await main(['validate', '--strict'], io())).toBe(2);
+  });
+});
+
+describe('scroum build', () => {
+  it('construit la démo et affiche le chemin du zip', async () => {
+    const dir = join(tmp, 'build-demo');
+    cpSync(join(examples, 'demo'), dir, { recursive: true });
+    const t = io();
+    expect(await main(['build', dir], t)).toBe(0);
+    expect(t.stdout.join('\n')).toMatch(/demo-.+\.scroum\.zip/);
+  });
+  it('code 1 et pas de zip si la validation échoue', async () => {
+    const dir = join(tmp, 'build-bad');
+    cpSync(join(examples, 'demo'), dir, { recursive: true });
+    writeFileSync(join(dir, 'content/scenes/port.yaml'), 'id: [casse');
+    const t = io();
+    expect(await main(['build', dir], t)).toBe(1);
+    expect(existsSync(join(dir, 'dist'))).toBe(false);
+  });
+  it('gen-image : message M5', async () => {
+    const t = io();
+    expect(await main(['gen-image'], t)).toBe(1);
+    expect(t.stderr.join()).toMatch(/M5/);
   });
 });
