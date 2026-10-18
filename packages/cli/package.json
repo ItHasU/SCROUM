@@ -1,0 +1,27 @@
+{
+  "name": "@scroum/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Binaire scroum : validate, build, edit, gen-image",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@scroum/schema": "workspace:*",
+    "@scroum/validate": "workspace:*",
+    "tsx": "^4.23.15",
+    "yaml": "^2.9.1"
+  },
+  "bin": {
+    "scroum": "./bin/scroum.js"
+  },
+  "files": [
+    "bin",
+    "src"
+  ]
+}
