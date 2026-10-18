@@ -1,0 +1,38 @@
+# Monde « songe » (skin rpg_bubbles) : objet hors scope (briquet → refus du monde), double identité.
+status: draft
+title: "La grotte du Songe"
+world: songe
+background: img_songe_bg
+on_enter:
+  - if: { not: { flag: songe_visite } }
+    do:
+      - { say: narrator, text: "Des lanternes flottent sous une voûte d'eau. Une silhouette d'écume se tient près d'un bassin." }
+      - { set: songe_visite }
+      - { unlock_quest: secret_gardien }
+
+hotspots:
+  - id: gardien
+    label: "Silhouette d'écume"
+    character: gardien
+    rect: [0.4, 0.15, 0.2, 0.6]
+    actions:
+      look:
+        if: { flag: gardien_demasque }
+        do: "Yves, en pyjama d'écume, l'air soulagé."
+        else: "Une silhouette faite d'écume et de lanternes. Elle a quelque chose de familier."
+      talk:
+        if: { flag: gardien_demasque }
+        do: { start_dialogue: gardien, node: apres }
+        else: { dialogue: gardien }
+
+  - id: bassin
+    label: "Bassin lumineux"
+    rect: [0.05, 0.65, 0.3, 0.3]
+    actions:
+      look: "L'eau du bassin brille comme un ciel étoilé."
+      use:
+        # Pas de default : un objet sans réaction utilise la réplique de refus du monde.
+        coquillage: { say: narrator, text: "Le coquillage chante une berceuse que Margot croyait avoir oubliée." }
+
+exits:
+  - { to: phare_bas, label: "Se réveiller", rect: [0.9, 0.1, 0.1, 0.3], do: [ { say: narrator, text: "Margot se réveille en sursaut sur le lit de camp." } ] }

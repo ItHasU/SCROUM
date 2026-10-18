@@ -1,0 +1,17 @@
+# Intentions reconnues en texte libre (give_item et show_item sont réservées et fournies par le moteur).
+saluer:
+  desc: "Saluer, dire bonjour"
+  examples: ["bonjour", "salut Loïc", "coucou"]
+  keywords: [bonjour, salut, coucou, hello]
+question_phare:
+  desc: "Demander comment rallumer le phare"
+  examples: ["comment je rallume le phare ?", "le phare est éteint", "il faut quoi pour la lampe ?"]
+  keywords: [phare, lampe, rallumer, lumière, allumer]
+compliment:
+  desc: "Faire un compliment"
+  examples: ["belle barbe !", "vous avez l'air d'un vrai marin", "j'adore votre bateau"]
+  keywords: [belle, beau, joli, jolie, adore, bravo, magnifique]
+blague:
+  desc: "Faire une blague (souvent mal reçue)"
+  examples: ["ça mord ?", "vous avez pêché une baleine ?", "blague"]
+  keywords: [blague, mord, baleine, rigolo, lol]

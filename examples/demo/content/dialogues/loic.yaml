@@ -1,0 +1,90 @@
+# Dialogue semi-scripté : choix + texte libre (free_text), on_show, récompense (give_item).
+status: review
+speaker: loic
+start: accueil
+nodes:
+  accueil:
+    lines:
+      - "Tiens, la petite-nièce d'Yves. T'as grandi."
+      - { speaker: margot, text: "Bonjour Loïc. Ça fait vingt ans, oui." }
+    next: menu
+
+  menu:
+    lines: ["Alors, qu'est-ce que tu veux ?"]
+    choices:
+      - { label: "Comment rallumer le phare ?", intent: question_phare, next: phare }
+      - label: "Offrir deux coquillages"
+        if: { item_qty: coquillage, gte: 2 }
+        effects: [ { take_item: coquillage, qty: 2 }, { add: { humeur_loic: 2 } } ]
+        next: cadeau
+      - label: "Vous me prêtez votre briquet ?"
+        if: { all: [ { flag: sait_pour_le_feu }, { not: { ever_had_item: briquet } } ] }
+        next: demande_briquet
+      - { label: "Au revoir" }                       # pas de next : fin du dialogue
+    free_text:
+      placeholder: "Dire quelque chose à Loïc…"
+      intents:
+        saluer: salut
+        question_phare: phare
+        compliment: compliment
+        blague: { next: blague, effects: [ { counter: maladresses, add: 1 } ] }
+      fallback: incompris
+    on_show:
+      photo_ancienne: photo
+      default: { next: menu, effects: [ { say: loic, text: "Hmm. Et alors ?" } ] }
+
+  salut:
+    lines: ["Ouais, salut. On s'est déjà dit bonjour, non ?"]
+    next: menu
+
+  phare:
+    lines:
+      - "Le phare ? Faut une mèche huilée dans la lampe, et du feu."
+      - "L'huile, Yves la gardait… je sais plus où. Le feu, moi j'en ai. Mais je le prête pas à n'importe qui."
+    effects: [ { set: sait_pour_le_feu } ]
+    next: menu
+
+  compliment:
+    lines: ["Ma barbe ? Quarante ans de sel là-dedans, ma grande."]
+    effects: [ { add: { humeur_loic: 1 } } ]
+    next: menu
+
+  blague:
+    lines: ["…Hmpf. Les Parisiens."]
+    next: menu
+
+  incompris:
+    lines: ["Hein ? Parle plus fort, y a du vent."]
+    next: menu
+
+  cadeau:
+    lines: ["Des coquillages ! Comme quand t'étais gamine. Ça me touche, tiens."]
+    next: menu
+
+  photo:
+    lines:
+      - "Yves… Il est pas vraiment parti, tu sais. Il dort dans son phare et il rêve de la mer."
+      - "Fais une sieste sur son lit de camp, tu verras."
+    effects: [ { set: indice_reve } ]
+    next: menu
+
+  demande_briquet:
+    lines: ["Mon briquet tempête ? Hmm…"]
+    choices:
+      - label: "« S'il vous plaît, c'est pour le phare d'Yves. »"
+        if: { var: humeur_loic, gte: 2 }
+        next: recompense
+      - label: "« S'il vous plaît, c'est pour le phare d'Yves. »"
+        if: { not: { var: humeur_loic, gte: 2 } }
+        next: pas_encore
+
+  pas_encore:
+    lines: ["Je te connais à peine, moi. Reviens quand on aura un peu causé."]
+    next: menu
+
+  recompense:
+    lines: ["T'as l'air d'une vraie gardienne, finalement. Tiens, il s'allume même sous la pluie."]
+    effects:
+      - { give_item: briquet }
+      - { counter: courage, add: 1 }
+    # pas de next ni de choix : fin du dialogue

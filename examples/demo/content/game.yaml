@@ -1,0 +1,49 @@
+# Le Phare de Kerbrume — jeu de démonstration de SCROUM.
+title: "Le Phare de Kerbrume"
+version: 0.1.0
+formatVersion: 1
+description: "Margot doit rallumer le phare de son grand-oncle avant la tempête."
+start_scene: port
+player_character: margot
+refuse_line: "Ça ne donne rien."
+
+counters:
+  courage: { label: "Courage", hud: true, initial: 1, min: 0 }
+  maladresses:
+    label: "Maladresses"
+    hud: false                       # non affiché : sert aux titres et à une collection
+    titles:
+      - { min: 0, label: "Gardienne prometteuse" }
+      - { min: 2, label: "Marin d'eau douce" }
+      - { min: 4, label: "Catastrophe ambulante" }
+
+character_roles: [heroine, habitant, esprit]
+
+validation:
+  characters:
+    require_age: true
+    min_age: 18
+
+collections:
+  - id: souvenir_photo
+    title: "La photo de 1987"
+    text: "Yves et Margot, six ans, devant le phare fraîchement repeint."
+    images: [img_photo_ancienne]
+    if: { ever_had_item: photo_ancienne }
+  - id: souvenir_gardien
+    title: "Le Gardien des Marées"
+    text: "Sous le masque d'écume, le vieil Yves."
+    character: gardien               # l'UI montre persona.avatar à côté de identity.portrait
+    if: { flag: gardien_demasque }
+  - id: souvenir_maladroite
+    title: "Des mains pleines de pouces"
+    text: "Glisser, se brûler, se cogner : tout un art."
+    if: { counter: maladresses, gte: 2 }
+
+endings:
+  phare_rallume:
+    type: win
+    title: "Le phare veille"
+    text: "Le faisceau balaie la mer. Quelque part dans un rêve, Yves sourit."
+    image: img_fin_phare
+  # La fin « chute » (game_over) est déclarée en ligne dans scenes/lanterne.yaml.

@@ -1,0 +1,19 @@
+# Registre des assets. Les images retenues vont dans assets/images/<id>.webp.
+# La démo n'embarque aucune image : le player affiche des placeholders.
+img_port_bg:          { kind: background, status: draft, workflow: bg, prompt: "petit port breton, barques, ciel d'orage", width: 1280, height: 720 }
+img_phare_bas_bg:     { kind: background, status: draft, workflow: bg, prompt: "rez-de-chaussée d'un phare, coffre, commode, lit, escalier en colimaçon" }
+img_lanterne_bg:      { kind: background, status: draft, workflow: bg, prompt: "salle de la lanterne d'un phare, grande lampe à lentille de Fresnel, balcon" }
+img_songe_bg:         { kind: background, status: draft, workflow: bg, prompt: "grotte onirique sous-marine, lanternes flottantes, bassin lumineux" }
+img_fin_phare:        { kind: ending, status: draft, workflow: bg, prompt: "phare allumé dans la tempête, faisceau lumineux" }
+img_margot:           { kind: portrait, status: draft, workflow: char_sheet, prompt: "femme de 29 ans, ciré jaune, cheveux courts" }
+img_loic:             { kind: portrait, status: draft, workflow: char_sheet, prompt: "vieux pêcheur barbu, bonnet, pull marin" }
+img_yves:             { kind: portrait, status: draft, workflow: char_sheet, prompt: "vieil homme de 78 ans, casquette de gardien de phare" }
+img_gardien_persona:  { kind: avatar, status: draft, workflow: transform, references: [img_yves], prompt: "même pose, silhouette d'écume et de lanternes" }
+img_photo_ancienne:   { kind: item, status: draft, workflow: item_icon, prompt: "photo sépia d'un homme et d'une fillette devant un phare" }
+img_item_meche:       { kind: item, status: draft, workflow: item_icon, prompt: "mèche de lampe en coton" }
+img_item_huile:       { kind: item, status: draft, workflow: item_icon, prompt: "fiole d'huile dorée" }
+img_item_meche_huilee: { kind: item, status: draft, workflow: item_icon, prompt: "mèche de lampe imbibée d'huile" }
+img_item_cle:         { kind: item, status: draft, workflow: item_icon, prompt: "grosse clé rouillée" }
+img_item_photo:       { kind: item, status: draft, workflow: item_icon, prompt: "petite photo sépia" }
+img_item_briquet:     { kind: item, status: draft, workflow: item_icon, prompt: "briquet tempête en laiton" }
+img_item_coquillage:  { kind: item, status: draft, workflow: item_icon, prompt: "coquillage nacré" }

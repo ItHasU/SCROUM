@@ -1,0 +1,6 @@
+title: "Démo soft-lock"
+version: 0.1.0
+formatVersion: 1
+start_scene: couloir
+endings:
+  sortie: { type: win, text: "Vous êtes sorti." }

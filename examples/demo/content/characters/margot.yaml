@@ -1,0 +1,9 @@
+# Personnage joué (game.yaml → player_character).
+status: validated
+role: heroine
+age: 29
+name: "Margot"
+description: "Graphiste parisienne, petite-nièce d'Yves. Pragmatique, un peu maladroite."
+world: ile
+portrait: img_margot
+voice: "Phrases courtes, ironie légère."
