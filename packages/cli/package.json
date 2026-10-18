@@ -15,7 +15,8 @@
     "@scroum/schema": "workspace:*",
     "@scroum/validate": "workspace:*",
     "tsx": "^4.23.15",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "bin": {
     "scroum": "./bin/scroum.js"

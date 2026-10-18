@@ -71,6 +71,8 @@ const LABEL: Record<RefKind, string> = {
   speaker: 'locuteur',
 };
 
+const FEMININE = new Set<RefKind>(['scene', 'intent', 'quest', 'ending']);
+
 const WHERE: Record<RefKind, string> = {
   scene: 'scenes/',
   dialogue: 'dialogues/',
@@ -103,7 +105,8 @@ function makeRef(game: GameData, ctx: AnalyzerContext) {
   return function ref(kind: RefKind, id: string | null, file: string, path: string): boolean {
     if (id === null || id === '') return true;
     if (has(tables[kind], id)) return true;
-    ctx.report('error', `unknown_${kind}`, file, path, `${LABEL[kind]} « ${id} » inconnu(e) (à déclarer dans ${WHERE[kind]})`);
+    const unknown = FEMININE.has(kind) ? 'inconnue' : 'inconnu';
+    ctx.report('error', `unknown_${kind}`, file, path, `${LABEL[kind]} « ${id} » ${unknown} (à déclarer dans ${WHERE[kind]})`);
     return false;
   };
 }
