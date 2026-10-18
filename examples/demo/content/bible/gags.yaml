@@ -1,0 +1,9 @@
+mouette_critique:
+  status: validated
+  text: "Une mouette regarde Margot avec un mépris professionnel."
+  tags: [port, animaux]
+barbe_salee: "Loïc affirme que sa barbe contient quarante ans de sel."
+gardien_pompeux:
+  status: draft
+  text: "Le Gardien parle en majuscules, même quand il chuchote."
+  tags: [songe]

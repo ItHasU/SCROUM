@@ -1,0 +1,48 @@
+# Dialogue dans le Songe : on_give (échange d'objet), on_show, révélation d'identité.
+status: draft
+speaker: gardien
+start: n1
+nodes:
+  n1:
+    lines: ["QUI OSE TROUBLER LE SONGE DES MARÉES ?"]
+    choices:
+      - { label: "Je cherche de l'huile pour le phare.", next: huile }
+      - { label: "Qui êtes-vous ?", next: qui }
+      - { label: "Partir" }
+    on_give:
+      photo_ancienne:
+        next: reconnaissance
+        effects:
+          - { take_item: photo_ancienne }
+          - { set: gardien_demasque }
+          - { complete_quest: secret_gardien }
+          - { give_item: huile }
+      default: refus
+    on_show:
+      photo_ancienne: trouble
+
+  huile:
+    lines: ["L'HUILE DES RÊVES SE MÉRITE. APPORTE-MOI UN SOUVENIR DU MONDE ÉVEILLÉ."]
+    next: n1
+
+  qui:
+    lines: ["JE SUIS LE GARDIEN DES MARÉES. JE N'AI PAS D'AUTRE NOM… JE CROIS."]
+    next: n1
+
+  trouble:
+    lines: ["Cette photo… ce phare… cette frange ratée… Donne-la-moi, je t'en prie."]
+    next: n1
+
+  refus:
+    lines: ["CECI N'A AUCUNE VALEUR DANS LE SONGE."]
+    next: n1
+
+  reconnaissance:
+    lines:
+      - "…Margot ? Ma petite Margot ?"
+      - "C'est moi, Yves. Je me suis perdu dans mes rêves de gardien."
+      - "Prends cette huile. Rallume mon phare, je veillerai d'ici."
+    effects: [ { counter: courage, add: 1 } ]
+
+  apres:
+    lines: ["Rallume le phare, Margot. Et mets un ciré, il va pleuvoir."]

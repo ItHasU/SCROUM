@@ -1,0 +1,78 @@
+# Objet caché révélé (cle_rouillee), ramassage par verbe personnalisé (photo), sortie verrouillée.
+status: review
+title: "Le bas du phare"
+world: ile
+background: img_phare_bas_bg
+on_enter:
+  - if: { not: { flag: visite_phare } }
+    do:
+      - { say: narrator, text: "Ça sent le sel, la poussière et l'huile froide." }
+      - { set: visite_phare }
+
+hotspots:
+  - id: coffre
+    label: "Coffre de marine"
+    rect: [0.05, 0.55, 0.22, 0.25]
+    actions:
+      look: "Un coffre de marine, cerclé de cuivre."
+      open:
+        if: { flag: coffre_ouvert }
+        do: "Le coffre ne contient plus que des cordages."
+        else:
+          - { set: coffre_ouvert }
+          - { reveal: cle_rouillee }
+          - { say: margot, text: "Sous les cordages… une clé !" }
+
+  - id: cle_rouillee
+    label: "Clé rouillée"
+    rect: [0.12, 0.6, 0.06, 0.06]
+    hidden: true                                    # révélée par l'ouverture du coffre
+    visible_if: { not: { ever_had_item: cle_rouillee } }
+    actions:
+      take: { do: [ { give_item: cle_rouillee } ] }
+
+  - id: commode
+    label: "Commode"
+    rect: [0.35, 0.5, 0.2, 0.3]
+    actions:
+      look: "Une commode bancale couverte de cartes marines."
+      fouiller:
+        label: "Fouiller les tiroirs"
+        if: { ever_had_item: photo_ancienne }
+        do: "Rien d'autre que des cartes marines."
+        else:
+          - { give_item: photo_ancienne }
+          - { say: margot, text: "Une photo… Yves et moi, devant le phare. J'avais six ans." }
+
+  - id: porte_escalier
+    label: "Porte de l'escalier"
+    rect: [0.7, 0.2, 0.15, 0.55]
+    actions:
+      look:
+        if: { flag: porte_ouverte }
+        do: "La porte est ouverte sur l'escalier en colimaçon."
+        else: "Une lourde porte fermée à clé."
+      use:
+        cle_rouillee:
+          - { set: porte_ouverte }
+          - { say: narrator, text: "La clé tourne, grince… et se brise dans la serrure. La porte est ouverte." }
+        default: { say: margot, text: "Ça n'ouvre pas une porte, ça." }
+
+  - id: lit
+    label: "Lit de camp"
+    rect: [0.3, 0.82, 0.3, 0.16]
+    actions:
+      look: "Le lit de camp d'Yves. La couverture garde encore sa forme."
+      dormir:
+        label: "Faire une sieste"
+        do:
+          - { say: narrator, text: "Margot s'allonge une minute… et le bruit des vagues l'emporte." }
+          - { goto_scene: songe_grotte }
+
+exits:
+  - { to: port, label: "Retour au port", rect: [0, 0.3, 0.06, 0.5] }
+  - to: lanterne                                    # id implicite : exit_lanterne
+    label: "Monter à la lanterne"
+    rect: [0.86, 0.22, 0.12, 0.5]
+    if: { flag: porte_ouverte }                     # sortie verrouillée
+    else: { say: margot, text: "La porte de l'escalier est fermée à clé." }

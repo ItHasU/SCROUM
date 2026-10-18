@@ -1,0 +1,3 @@
+cle:
+  name: "Clé"
+  consumable: true          # retirée après chaque utilisation réussie…

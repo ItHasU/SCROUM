@@ -1,0 +1,62 @@
+# Objets. Chaque objet doit être obtenable (give_item quelque part, ou résultat d'une combinaison).
+
+meche:
+  status: validated
+  name: "Mèche de coton"
+  description: "Une mèche de lampe, toute sèche."
+  icon: img_item_meche
+  scope: ile
+  look: { say: margot, text: "Sèche comme un biscuit de mer." }
+  combine:
+    - with: huile
+      result: meche_huilee
+      consume: [meche, huile]
+      effects: [ { say: margot, text: "Je trempe la mèche dans l'huile. Voilà qui brûlera longtemps." } ]
+
+huile:
+  status: validated
+  name: "Fiole d'huile de lampe"
+  description: "Une huile dorée qui sent l'iode. Venue d'un rêve."
+  icon: img_item_huile
+  scope: any
+  look: "La fiole est tiède, comme si elle sortait d'une poche."
+
+meche_huilee:
+  status: validated
+  name: "Mèche huilée"
+  description: "Prête à brûler toute une nuit de tempête."
+  icon: img_item_meche_huilee
+  scope: ile
+  consumable: true             # retirée après une utilisation réussie (use spécifique)
+
+cle_rouillee:
+  status: validated
+  name: "Clé rouillée"
+  description: "Une grosse clé de fer mangée par le sel."
+  icon: img_item_cle
+  scope: ile
+  consumable: true
+  look: { say: margot, text: "Elle tiendra peut-être pour un dernier tour de serrure." }
+
+photo_ancienne:
+  status: validated
+  name: "Photo ancienne"
+  description: "Yves et une petite fille devant le phare, 1987."
+  icon: img_item_photo
+  look: { say: margot, text: "C'est moi, là, avec la frange ratée." }
+
+briquet:
+  status: validated
+  name: "Briquet tempête"
+  description: "Le briquet de Loïc. Il s'allume même sous la pluie."
+  icon: img_item_briquet
+  scope: ile                   # inutilisable dans le Songe (refus du monde)
+  look: { say: margot, text: "Clic. Une flamme bleue, têtue." }
+
+coquillage:
+  status: draft
+  name: "Coquillage"
+  description: "Un joli coquillage nacré."
+  icon: img_item_coquillage
+  stackable: true
+  look: "On entend la mer dedans. Évidemment."

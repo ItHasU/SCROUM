@@ -1,0 +1,16 @@
+world: manoir
+hotspots:
+  - id: cle
+    label: "Clé"
+    rect: [0.1, 0.8, 0.05, 0.05]
+    visible_if: { not: { ever_had_item: cle } }   # …et on ne l'obtient qu'une fois
+    actions:
+      take: { give_item: cle }
+  - id: porte1
+    label: "Porte 1"
+    rect: [0.4, 0.2, 0.2, 0.6]
+    actions:
+      use:
+        cle: [ { set: porte1_ouverte }, "La porte 1 s'ouvre." ]
+exits:
+  - { to: cave, label: "Cave", rect: [0.4, 0.2, 0.2, 0.6], if: { flag: porte1_ouverte }, else: "Fermé." }

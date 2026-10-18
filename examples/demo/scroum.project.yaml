@@ -1,0 +1,8 @@
+# Configuration du dépôt de jeu (versionnée). Voir docs/FORMAT.md § « Dépôt de jeu ».
+formatVersion: 1
+name: demo                 # dist/demo-<version>.scroum.zip
+content: content
+output: dist
+workflows: workflows
+editor:
+  port: 5180

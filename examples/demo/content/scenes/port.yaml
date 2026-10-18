@@ -1,0 +1,54 @@
+# Scène de départ. Obtention par ramassage (meche, coquillage) ; dialogue à texte libre (Loïc).
+status: review
+title: "Le port"
+world: ile
+background: img_port_bg
+on_enter:
+  - if: { not: { flag: arrivee } }
+    do:
+      - { say: narrator, text: "Le bac repart déjà. Au bout de la jetée, le phare de Kerbrume est éteint. Le ciel noircit." }
+      - { say: margot, text: "Bon. Rallumer un phare. Ça ne doit pas être si compliqué." }
+      - { set: arrivee }
+      - { unlock_quest: rallumer_phare }
+
+hotspots:
+  - id: caisse
+    label: "Caisse de pêche"
+    rect: [0.08, 0.62, 0.18, 0.2]
+    actions:
+      look: { say: narrator, text: "Une caisse pleine de bouts de ficelle et de trucs de marin." }
+      take:
+        label: "Fouiller"
+        if: { ever_had_item: meche }
+        do: { say: margot, text: "Il ne reste que de la ficelle." }
+        else:
+          - { give_item: meche }
+          - { say: margot, text: "Une mèche de lampe ! Sèche, mais c'est un début." }
+
+  - id: rochers
+    label: "Rochers"
+    rect: [0.7, 0.7, 0.28, 0.25]
+    actions:
+      look: "Des rochers couverts d'algues glissantes. Des coquillages brillent entre les flaques."
+      take:
+        label: "Ramasser un coquillage"
+        do:
+          - if: { not: { flag: a_glisse } }
+            do:
+              - { say: narrator, text: "Margot glisse sur les algues et se rattrape de justesse." }
+              - { counter: maladresses, add: 1 }
+              - { set: a_glisse }
+          - if: { item_qty: coquillage, lt: 3 }
+            do: [ { give_item: coquillage } ]
+            else: { say: margot, text: "J'ai les poches pleines de coquillages." }
+
+  - id: loic
+    label: "Loïc"
+    character: loic
+    rect: [0.42, 0.35, 0.14, 0.45]
+    actions:
+      look: { say: narrator, text: "Un vieux pêcheur ravaude ses filets en grommelant." }
+      talk: { dialogue: loic }
+
+exits:
+  - { to: phare_bas, label: "Vers le phare", rect: [0.88, 0.2, 0.12, 0.45] }

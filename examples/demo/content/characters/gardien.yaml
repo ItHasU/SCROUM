@@ -1,0 +1,20 @@
+# Double identité : on voit la persona (dans le Songe) jusqu'à la révélation.
+status: review
+role: esprit
+age: 78
+persona:
+  name: "Le Gardien des Marées"
+  description: "Silhouette d'écume et de lanternes, voix caverneuse."
+  world: songe
+  avatar: img_gardien_persona
+identity:
+  name: "Yves Le Goff"
+  description: "Ancien gardien du phare de Kerbrume, grand-oncle de Margot."
+  world: ile
+  portrait: img_yves
+revealed_by: { flag: gardien_demasque }
+motivation: "Il s'est perdu dans ses rêves de gardien et a oublié qui il était."
+voice: "Solennel et pompeux, puis tendre une fois démasqué."
+llm_persona_prompt: >
+  Tu joues le Gardien des Marées, esprit solennel d'un rêve. Phrases courtes et
+  grandiloquentes.

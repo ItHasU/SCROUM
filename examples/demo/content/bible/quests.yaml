@@ -1,0 +1,8 @@
+rallumer_phare:
+  status: validated
+  title: "Rallumer le phare"
+  description: "Trouver une mèche, de l'huile et du feu avant la tempête."
+secret_gardien:
+  status: review
+  title: "Le secret du Gardien"
+  description: "Qui se cache derrière le Gardien des Marées ?"

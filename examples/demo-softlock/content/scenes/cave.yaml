@@ -1,0 +1,11 @@
+world: manoir
+hotspots:
+  - id: porte2
+    label: "Porte 2"
+    rect: [0.4, 0.2, 0.2, 0.6]
+    actions:
+      look: "Une porte, fermée à clé. La même serrure que la porte 1."
+      use:
+        cle: { end_game: sortie }
+exits:
+  - { to: couloir, label: "Couloir", rect: [0, 0.3, 0.1, 0.5] }

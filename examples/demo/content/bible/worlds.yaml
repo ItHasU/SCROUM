@@ -1,0 +1,12 @@
+ile:
+  status: validated
+  name: "L'île de Kerbrume"
+  description: "Une île battue par les vents, un port, un phare."
+  ui_skin: plain
+  refuse_line: "Ça ne sert à rien ici."
+songe:
+  status: validated
+  name: "Le Songe des Marées"
+  description: "Le monde des rêves des gardiens de phare."
+  ui_skin: rpg_bubbles
+  refuse_line: "Dans le Songe, cet objet se dissout comme de la brume."

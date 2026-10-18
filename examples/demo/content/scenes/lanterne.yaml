@@ -1,0 +1,52 @@
+# Utilisation d'objets sur un hotspot (use indexé), fin gagnante et game over.
+status: review
+title: "La lanterne"
+world: ile
+background: img_lanterne_bg
+on_enter:
+  - if: { not: { flag: visite_lanterne } }
+    do:
+      - { say: narrator, text: "Tout en haut, la grande lampe attend, éteinte. Dehors, la tempête approche." }
+      - { set: visite_lanterne }
+
+hotspots:
+  - id: lampe
+    label: "Grande lampe"
+    rect: [0.35, 0.2, 0.3, 0.5]
+    actions:
+      look:
+        if: { flag: lampe_prete }
+        do: "La mèche huilée est en place. Il ne manque qu'une flamme."
+        else: "Une lampe magnifique, avec une lentille grande comme une roue. Pas de mèche."
+      use:
+        meche_huilee:                                 # consommable : retirée après usage
+          - { set: lampe_prete }
+          - { say: margot, text: "Mèche en place. Plus qu'à l'allumer." }
+        meche: { say: margot, text: "Sèche comme ça, elle brûlerait en trois secondes." }
+        briquet:
+          if: { flag: lampe_prete }
+          do:
+            - { say: narrator, text: "La flamme prend. La lentille s'illumine et le faisceau part balayer la mer." }
+            - { complete_quest: rallumer_phare }
+            - { counter: courage, add: 2 }
+            - { end_game: phare_rallume }
+          else: { say: margot, text: "Allumer une lampe sans mèche ? Audacieux." }
+        default: { say: margot, text: "Je ne crois pas que la lampe fonctionne avec ça." }
+
+  - id: balcon
+    label: "Balcon"
+    rect: [0.75, 0.3, 0.25, 0.6]
+    actions:
+      look: "Le balcon fait le tour de la lanterne. Le vent hurle."
+      enjamber:
+        label: "Enjamber la rambarde"
+        do:
+          - { counter: maladresses, add: 1 }
+          - end_game:
+              ending: chute
+              type: game_over
+              title: "Plouf"
+              text: "Une rafale, un cri, un plongeon. La mer de Kerbrume ne rend jamais les imprudents… mais le bouton « Recommencer », si."
+
+exits:
+  - { to: phare_bas, label: "Redescendre", rect: [0, 0.6, 0.1, 0.35] }
