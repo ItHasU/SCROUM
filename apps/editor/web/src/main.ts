@@ -9,6 +9,7 @@ import { toast } from './ui/common';
 import { createFilesView } from './ui/files';
 import { createGraphView } from './ui/graph';
 import { createInspector } from './ui/inspector';
+import { createImagesView } from './ui/images';
 import { createItemsView } from './ui/items';
 import { createPlaytestView } from './ui/playtest';
 import { createValidation } from './ui/validation';
@@ -20,6 +21,7 @@ const NAV: [ViewName, string][] = [
   ['items', 'Objets'],
   ['files', 'Fichiers'],
   ['playtest', 'Playtest'],
+  ['images', 'Images'],
   ['claude', 'Claude'],
 ];
 
@@ -73,6 +75,7 @@ function boot(): void {
     items: createItemsView(),
     files: createFilesView(),
     playtest: createPlaytestView(),
+    images: createImagesView(),
     claude: createClaudeView(),
   };
   const navButtons = new Map<ViewName, HTMLElement>();

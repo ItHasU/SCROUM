@@ -3,7 +3,7 @@ import type { ContentError, GameData } from '@scroum/schema';
 import { api, type FileEntry, type ProjectInfo, type Report } from './api';
 import { refKey, type Ref } from './model/refs';
 
-export type ViewName = 'bible' | 'graph' | 'items' | 'files' | 'playtest' | 'claude';
+export type ViewName = 'bible' | 'graph' | 'items' | 'files' | 'playtest' | 'images' | 'claude';
 
 export interface AppState {
   project: ProjectInfo | null;

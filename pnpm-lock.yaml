@@ -266,6 +266,9 @@ importers:
       '@scroum/editor-server':
         specifier: workspace:*
         version: link:../server
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../../../packages/images
       '@scroum/validate':
         specifier: workspace:*
         version: link:../../../packages/validate
