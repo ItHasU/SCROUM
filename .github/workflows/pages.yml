@@ -26,6 +26,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm --filter @scroum/player build
+      - name: Construire les jeux de démo
+        run: |
+          mkdir -p apps/player/dist/games
+          for g in demo demo-softlock; do
+            pnpm scroum build examples/$g
+            cp examples/$g/dist/$g-*.scroum.zip apps/player/dist/games/$g.scroum.zip
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demos
+          path: apps/player/dist/games/*.scroum.zip
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/player/dist
@@ -39,3 +50,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  release-demos:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: demos
+      - name: Publier les démos (release « demos »)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete demos --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create demos *.scroum.zip --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Jeux de démo (build ${GITHUB_SHA::7})" \
+            --notes "Jouer directement : https://ithasu.github.io/SCROUM/?game=games/demo.scroum.zip — solution dans docs/DEMOS.md."

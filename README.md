@@ -18,6 +18,10 @@ Le playtest est servi par l'éditeur sous `/play/?source=/api`. `pnpm scroum --h
 
 ## Jouer
 
+**Jeux de démo en ligne** (solutions dans [`docs/DEMOS.md`](docs/DEMOS.md)) :
+- [Le Phare de Kerbrume](https://ithasu.github.io/SCROUM/?game=games/demo.scroum.zip)
+- [Démo soft-lock](https://ithasu.github.io/SCROUM/?game=games/demo-softlock.scroum.zip)
+
 - **Depuis l'éditeur** (source directe, rechargement à chaud) : `pnpm scroum edit examples/demo`, puis ouvrir
   http://127.0.0.1:5317/play/?source=/api (`&scene=<id>` pour démarrer dans une scène).
 - **Player seul** : `pnpm --filter @scroum/player dev` (ou `build` → `apps/player/dist`, statique, base relative), puis
