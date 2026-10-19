@@ -11,3 +11,5 @@ export * from './state';
 export * from './conditions';
 export * from './queries';
 export * from './engine';
+export * from './actions';
+export * from './view';
