@@ -19,6 +19,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@scroum/validate": "workspace:*",
     "@types/cytoscape": "^3.31.0"
   }
 }
