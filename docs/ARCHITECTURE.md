@@ -27,15 +27,16 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 |---|---|---|
 | `@scroum/schema` | Types canoniques, schémas zod des fichiers, normalisation, `loadContent`, `FORMAT_VERSION`, `migrate`, visiteurs | M0 ✔ |
 | `@scroum/validate` | Validation niveau 1 (schéma, règles, références, obtenabilité) ; `@scroum/validate/node` pour la lecture disque ; point d'extension `Analyzer` | M0 ✔ (jouabilité : M1b) |
-| `@scroum/cli` | Binaire `scroum` : `validate` ✔ ; `build`, `edit`, `gen-image` à venir | M0 partiel |
+| `@scroum/build` | Résolution d'un dépôt de jeu (`resolveProject`) et `buildProject` (validation → images sharp/webp → zip) | M2 ✔ |
+| `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit` ✔ ; `gen-image` (message « non implémenté », M5) | M2 ✔ |
 | `@scroum/engine` | Machine à états pure | squelette (M1) |
 | `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | squelette (M1) |
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | squelette (M1) |
-| `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur | squelette (M2) |
+| `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
 | `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur | squelette (M3) |
 
-Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ←
-`cli`, `editor-server` ; `validate` dépendra de `engine` pour l'analyse de jouabilité.
+Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
+`cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépendra de `engine` pour l'analyse de jouabilité.
 
 ## Branches
 
@@ -114,3 +115,44 @@ Ajouts du jalon M0 (choix d'implémentation, documentés dans `docs/FORMAT.md`) 
 - Nœuds de dialogue : `speaker` par nœud, lignes `{ speaker, text }`,
   `free_text.threshold` et `placeholder`.
 - `notes` accepté partout ; clés inconnues refusées.
+
+## Zip et build (M2)
+
+- `@scroum/schema/zip` : `writeGameZip(game, images)` et `readGameZip(bytes) → { manifest, game, images: Map<assetId, Uint8Array> }`
+  (navigateur + Node, fflate). `readGameZip` lève `FormatVersionError` si `formatVersion` est plus récent que le moteur
+  (ou sans migration), `GameZipError` si l'archive est illisible/incomplète ; un format plus ancien est migré.
+- `manifest.json` : `{ formatVersion, title, version, buildDate, images: [{ id, file }] }`. Dans `game.json`,
+  `assets.<id>.file` est réécrit en `images/<id>.<ext>` pour les images embarquées.
+- `scroum build` : validation complète (échec = aucun zip) → images `content/assets/images/*` converties par sharp au
+  format `images.format` (webp) et limitées à `images.max_width` (1280) de `scroum.project.yaml` ; sans sharp, copie brute et
+  avertissement ; `_candidates/` jamais embarqué ; sortie `<output>/<name>-<version>.scroum.zip`.
+
+## Serveur de l'éditeur (M2)
+
+`scroum edit [chemin] [--port N] [--host H]` → `startEditorServer({ project, port, host })`. `http` natif, écoute sur
+`127.0.0.1` (port : `--port`, puis `editor.port`, défaut **5317**) ; en loopback, les en-têtes `Host`/`Origin` étrangers
+sont refusés (403). Corps JSON pour les écritures. Routes :
+
+| Route | Rôle |
+|---|---|
+| `GET /api/project` | `{ name, root, contentDir, config, notes, git, playerAvailable }` |
+| `GET /api/files` | `{ files: [{ path, size, kind }] }` (chemins relatifs à `content/`) |
+| `GET /api/files/<chemin>` | `{ path, content }` (texte) ou octets (images) ; 404 si absent |
+| `PUT /api/files/<chemin>` | corps `{ content }` ; validation du fichier (YAML + zod) : 200 `{ ok, errors: [], warnings }` ou **422** `{ ok: false, errors }` sans écriture. Image : corps binaire (content-type ≠ JSON) |
+| `DELETE /api/files/<chemin>` | supprime |
+| `GET /api/game.json` | `GameData` compilé à la volée ; 422 `{ errors }` si le contenu ne se charge pas |
+| `GET /api/validate` | `{ ok, errors, warnings, skipped, title }` |
+| `GET /api/images/<assetId>` | image retenue (`assets/images/<id>.{webp,png,jpg,jpeg}`) |
+| `GET /events` | SSE : `{type:'hello'}`, puis `{type:'change', files:[…]}` (chokidar, debounce 120 ms, y compris les écritures de Claude Code) |
+| `POST /api/build` | `{ ok, zip, manifest, warnings }` ou 422 `{ ok:false, errors }` |
+| `POST /api/claude` | corps `{ prompt, selected?: { kind, id, file } }` ; réponse SSE : `{type:'claude', event}` (une ligne stream-json), puis `{type:'done', code, files, git, error?, stderr?}` ; `files` = fichiers modifiés (relatifs à la racine du dépôt, via instantané `git status`+empreinte avant/après), `null` hors dépôt git. Une demande à la fois (409) |
+| `POST /api/claude/revert` | corps `{ files }` : `git checkout HEAD -- f` (fichiers suivis) ou suppression (fichiers créés par Claude) |
+| `GET /api/diff?file=` | `{ file, diff }` (diff git ; fichier non suivi : diff contre /dev/null) |
+| `POST /api/gen-image` | 501 « génération d'images non implémentée (M5) » |
+| `/play/…` | player : Vite `middlewareMode` sur `apps/player` (base `/play/`) si `apps/player/index.html` existe, sinon page 503 « Player non disponible » ; ouvrir `/play/?source=/api` |
+| `/` | front statique `apps/editor/web/public/` (page minimale en attendant M3) |
+
+Claude Code : `claude -p "<demande>" --output-format stream-json --verbose --append-system-prompt "<…>" --permission-mode acceptEdits`,
+`cwd` = racine du dépôt de jeu. Le prompt système contient le chemin absolu de `docs/FORMAT.md`, `content/bible/tone.md`,
+les éléments `status: validated` et l'élément sélectionné. Commande configurable : option `claudeCommand`, sinon `$SCROUM_CLAUDE_BIN`,
+sinon `claude.command` de `scroum.local.yaml` (`claude.permission_mode` pour le mode de permission, vide = aucun), sinon `claude`.
