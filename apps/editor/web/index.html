@@ -1,39 +1,12 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Éditeur SCROUM</title>
-<style>
-  body { font: 15px/1.4 system-ui, sans-serif; margin: 0 auto; max-width: 56rem; padding: 1rem; }
-  h1 { font-size: 1.3rem } h2 { font-size: 1.05rem; margin-top: 1.5rem }
-  ul { padding-left: 1.2rem } code { background: #8882; padding: 0 .25em; border-radius: 3px }
-  .err { color: #c0392b } .ok { color: #1e8449 } .warn { color: #b9770e }
-</style>
 </head>
 <body>
-<h1>Éditeur SCROUM <small id="title"></small></h1>
-<p><a href="/play/?source=/api" target="_blank">Jouer (playtest)</a> · <button id="build">Builder le zip</button> <span id="buildOut"></span></p>
-<h2>Validation</h2><div id="report">…</div>
-<h2>Fichiers de <code>content/</code></h2><ul id="files"></ul>
-<script>
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-async function refresh() {
-  const [project, files, report] = await Promise.all(['/api/project', '/api/files', '/api/validate'].map((u) => fetch(u).then((r) => r.json())));
-  $('title').textContent = report.title ? `— ${report.title}` : '';
-  $('files').innerHTML = files.files.map((f) => `<li><code>${esc(f.path)}</code> <small>${f.size} o</small></li>`).join('');
-  const line = (i, cls) => `<li class="${cls}">${esc(i.file)} ${esc(i.path)} — ${esc(i.message)}</li>`;
-  $('report').innerHTML = (report.ok ? '<p class="ok">Contenu valide.</p>' : '<p class="err">Erreurs de validation.</p>')
-    + `<ul>${report.errors.map((i) => line(i, 'err')).join('')}${report.warnings.map((i) => line(i, 'warn')).join('')}</ul>`;
-}
-$('build').onclick = async () => {
-  const r = await fetch('/api/build', { method: 'POST' });
-  const j = await r.json();
-  $('buildOut').textContent = j.ok ? j.zip : `échec : ${j.errors?.length ?? 0} erreur(s)`;
-};
-refresh();
-new EventSource('/events').onmessage = (e) => { if (JSON.parse(e.data).type === 'change') refresh(); };
-</script>
+<div id="app"><p style="padding:1rem;font-family:system-ui">Chargement de l’éditeur SCROUM…</p></div>
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>
