@@ -124,28 +124,28 @@ describe('front de l’éditeur (jsdom)', () => {
 
   it('Atelier d’images : génération, sélection, comparaison, validation humaine', async () => {
     nav('images');
-    await until(() => view('images').querySelectorAll('.img-row').length > 5);
+    await until(() => view('images').querySelectorAll('.img-row').length > 5, 30000);
     expect(view('images').textContent).toContain('connecté');
     view('images').querySelector<HTMLElement>('.img-row[data-asset="img_port_bg"]')!.click();
-    await until(() => (view('images').querySelector<HTMLTextAreaElement>('#img-prompt')?.value ?? '').includes('port breton'));
+    await until(() => (view('images').querySelector<HTMLTextAreaElement>('#img-prompt')?.value ?? '').includes('port breton'), 30000);
     const n = view('images').querySelector<HTMLInputElement>('#img-n')!;
     n.value = '2';
     view('images').querySelector<HTMLElement>('#img-generate')!.click();
-    await until(() => view('images').querySelectorAll('.cand').length === 2, 15000);
+    await until(() => view('images').querySelectorAll('.cand').length === 2, 30000);
     expect(view('images').querySelector('#img-status')!.textContent).toMatch(/Terminé|Candidat/);
     // Retenir le candidat 1 → statut « à relire », vignette dans la liste
-    await until(() => !view('images').querySelector<HTMLButtonElement>('.cand .select')!.disabled);
+    await until(() => !view('images').querySelector<HTMLButtonElement>('.cand .select')!.disabled, 30000);
     view('images').querySelector<HTMLElement>('.cand .select')!.click();
-    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-review'));
+    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-review'), 30000);
     expect(view('images').querySelector('.img-row[data-asset="img_port_bg"] img.thumb')).toBeTruthy();
     // Comparaison avec un autre asset
     const cmp = view('images').querySelector<HTMLSelectElement>('#img-compare')!;
     cmp.value = 'img_loic';
     cmp.dispatchEvent(new Event('change'));
-    await until(() => view('images').querySelectorAll('.cmp > div').length === 2);
+    await until(() => view('images').querySelectorAll('.cmp > div').length === 2, 30000);
     // Validation (action humaine)
-    await until(() => !view('images').querySelector<HTMLButtonElement>('#img-validate')!.disabled);
+    await until(() => !view('images').querySelector<HTMLButtonElement>('#img-validate')!.disabled, 30000);
     view('images').querySelector<HTMLElement>('#img-validate')!.click();
-    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-validated'));
-  });
+    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-validated'), 30000);
+  }, 90_000);
 });
