@@ -253,8 +253,11 @@ export function emptyGameData(): GameData {
       character_roles: [],
       validation: { characters: { require_age: false, min_age: null } },
       initial: { flags: [], vars: {}, inventory: {}, quests: [] },
+      dialogue: { echo_choices: false },
     },
     counters: {},
+    vars: {},
+    skins: {},
     endings: {},
     collections: [],
     worlds: {},
@@ -332,7 +335,12 @@ export function loadContent(files: ContentFiles): LoadResult {
   game.meta = gameMetaFromFile(g);
   for (const [id, c] of Object.entries(g.counters)) game.counters[id] = { id, ...c };
   for (const [id, e] of Object.entries(g.endings)) game.endings[id] = { id, ...e };
+  for (const [id, v] of Object.entries(g.vars)) game.vars[id] = { id, ...v };
   game.collections = g.collections;
+  for (const [file, content] of entries) {
+    const m = /^skins\/([^/]+)\.css$/.exec(file);
+    if (m) game.skins[m[1]!] = textOf(content);
+  }
 
   // --- bible -----------------------------------------------------------------
   for (const [file, content] of of('worlds')) {
@@ -435,7 +443,7 @@ export function loadContent(files: ContentFiles): LoadResult {
       game.endings[e.ending.id] = e.ending;
       continue;
     }
-    const same = (k: keyof Ending) => e.ending[k] === null || e.ending[k] === prev[k];
+    const same = (k: 'type' | 'title' | 'text' | 'image') => e.ending[k] === null || e.ending[k] === prev[k];
     if (!(same('type') && same('title') && same('text') && same('image'))) {
       errors.push({
         severity: 'error',

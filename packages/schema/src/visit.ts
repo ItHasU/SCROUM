@@ -89,6 +89,7 @@ export function visitScripts(game: GameData, fn: (script: Script, loc: Location)
   for (const item of Object.values(game.items)) {
     const base = { file: item.source, item: item.id };
     fn(item.look, { ...base, path: join(item.id, 'look') });
+    for (const [verb, a] of Object.entries(item.actions)) fn(a.script, { ...base, path: join(item.id, `actions.${verb}`) });
     item.combine.forEach((c, i) => fn(c.effects, { ...base, path: join(item.id, `combine[${i}].effects`) }));
   }
 }
@@ -117,12 +118,16 @@ export function visitConditions(game: GameData, fn: (cond: Condition, loc: Locat
   }
   for (const d of Object.values(game.dialogues)) {
     for (const n of Object.values(d.nodes)) {
-      n.choices.forEach((c, i) => c.condition && fn(c.condition, { file: d.source, dialogue: d.id, node: n.id, path: `nodes.${n.id}.choices[${i}].if` }));
+      const loc = { file: d.source, dialogue: d.id, node: n.id };
+      n.choices.forEach((c, i) => c.condition && fn(c.condition, { ...loc, path: `nodes.${n.id}.choices[${i}].if` }));
+      n.next_if.forEach((b, i) => fn(b.condition, { ...loc, path: `nodes.${n.id}.next[${i}].if` }));
+      n.lines.forEach((l, i) => l.condition && fn(l.condition, { ...loc, path: `nodes.${n.id}.lines[${i}].if` }));
     }
   }
   for (const c of Object.values(game.characters)) {
     if (c.revealed_by) fn(c.revealed_by, { file: c.source, path: 'revealed_by' });
   }
+  for (const [id, e] of Object.entries(game.endings)) e.text_if.forEach((t, i) => fn(t.condition, { file: 'game.yaml', path: `endings.${id}.text[${i}].if` }));
   game.collections.forEach((c, i) => fn(c.condition, { file: 'game.yaml', path: `collections[${i}].if` }));
 }
 

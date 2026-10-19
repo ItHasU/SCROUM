@@ -159,7 +159,16 @@ export interface Ending {
   type: EndingType;
   title: string | null;
   text: string | null;
+  /** Variantes de texte conditionnelles : la première dont la condition est vraie remplace `text`. */
+  text_if: { condition: Condition; text: string }[];
   image: Id | null;
+}
+
+/** Variable de jeu déclarée dans `game.yaml → vars` (bornes optionnelles appliquées par le moteur). */
+export interface VarDef {
+  id: Id;
+  min: number | null;
+  max: number | null;
 }
 
 export interface Collection {
@@ -203,6 +212,13 @@ export interface GameMeta {
   character_roles: Id[];
   validation: ValidationRules;
   initial: InitialState;
+  /** Options des dialogues. */
+  dialogue: DialogueOptions;
+}
+
+export interface DialogueOptions {
+  /** Affiche le libellé du choix retenu comme réplique du `player_character`. */
+  echo_choices: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +369,14 @@ export interface Scene {
 export interface Line {
   speaker: Id;
   text: string;
+  /** Condition d'affichage de la réplique, évaluée à l'entrée dans le nœud (null = toujours). */
+  condition: Condition | null;
+}
+
+/** Branche conditionnelle de `next` : première condition vraie gagne. */
+export interface NextBranch {
+  condition: Condition;
+  next: Id | null;
 }
 
 /** Transition : effets puis nœud suivant (`next: null` = fin du dialogue). */
@@ -387,8 +411,10 @@ export interface DialogueNode {
   effects: Script;
   choices: Choice[];
   free_text: FreeText | null;
-  /** Enchaînement automatique (exclusif avec choices/free_text). null = fin si aucune autre sortie. */
+  /** Enchaînement automatique (exclusif avec choices/free_text). null = fin si aucune autre sortie. Sert de repli quand `next_if` est non vide. */
   next: Id | null;
+  /** Branches conditionnelles essayées avant `next` (exclusives avec choices/free_text). */
+  next_if: NextBranch[];
   on_give: ItemReactions<Transition> | null;
   on_show: ItemReactions<Transition> | null;
 }
@@ -437,6 +463,8 @@ export interface Item {
   stackable: boolean;
   /** Réaction à « regarder » l'objet dans l'inventaire. */
   look: Script;
+  /** Verbes personnalisés depuis l'inventaire (`boire`, `lire`…), dans l'ordre du fichier. */
+  actions: Record<string, VerbAction>;
   /** Combinaisons déclarées sur cet objet (symétriques : voir `findCombination`). */
   combine: Combination[];
   source: string;
@@ -469,6 +497,10 @@ export interface GameData {
   formatVersion: number;
   meta: GameMeta;
   counters: Record<Id, Counter>;
+  /** Variables déclarées (bornes). Une variable non déclarée reste non bornée. */
+  vars: Record<Id, VarDef>;
+  /** CSS des skins propres au jeu : nom → contenu de `content/skins/<nom>.css`. */
+  skins: Record<string, string>;
   endings: Record<Id, Ending>;
   collections: Collection[];
   worlds: Record<Id, World>;
