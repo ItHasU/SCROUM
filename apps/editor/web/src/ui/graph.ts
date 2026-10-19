@@ -46,6 +46,14 @@ const EDGE_STYLE: Record<GraphEdgeKind, { color: string; style: 'solid' | 'dashe
   quest: { color: '--c-quest', style: 'dotted', width: 1 },
 };
 
+/** Taille d'un nœud d'après son libellé (width/height 'label' sont dépréciés dans Cytoscape ≥ 3.33). */
+function labelBox(label: unknown): { w: number; h: number } {
+  const lines = String(label ?? '').split('\n');
+  const wrapped = lines.reduce((n, l) => n + Math.max(1, Math.ceil((l.length * 6.2) / 150)), 0);
+  const longest = Math.max(...lines.map((l) => l.length * 6.2));
+  return { w: Math.max(30, Math.min(150, longest)), h: Math.max(14, wrapped * 13) };
+}
+
 export function createGraphView(): View & { relayout(): void; model(): GraphModel | null } {
   const expanded = new Set<Id>();
   const hidden = new Set<GraphNodeKind>();
@@ -91,7 +99,7 @@ export function createGraphView(): View & { relayout(): void; model(): GraphMode
   function styleSheet(): cytoscape.StylesheetJson {
     const text = css('--text');
     const base: cytoscape.StylesheetJson = [
-      { selector: 'node', style: { label: 'data(label)', color: text, 'font-size': 11, 'text-wrap': 'wrap', 'text-max-width': '150px', 'text-valign': 'center', 'text-halign': 'center', shape: 'round-rectangle', width: 'label', height: 'label', padding: '9px', 'background-color': 'data(color)', 'border-width': 2, 'border-color': css('--st-none') } },
+      { selector: 'node', style: { label: 'data(label)', color: text, 'font-size': 11, 'text-wrap': 'wrap', 'text-max-width': '150px', 'text-valign': 'center', 'text-halign': 'center', shape: 'round-rectangle', width: (n: cytoscape.NodeSingular) => labelBox(n.data('label')).w, height: (n: cytoscape.NodeSingular) => labelBox(n.data('label')).h, padding: '9px', 'background-color': 'data(color)', 'border-width': 2, 'border-color': css('--st-none') } },
       { selector: 'node[kind="scene"]', style: { 'font-weight': 'bold', padding: '12px' } },
       { selector: 'node[kind="dialogue"]', style: { shape: 'round-tag', 'background-color': css('--bg-dialogue') } },
       { selector: 'node[kind="dialogue"][?expanded]', style: { 'text-valign': 'top', 'background-opacity': 0.25, padding: '14px' } },
