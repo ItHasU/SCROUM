@@ -14,3 +14,4 @@ export * from './engine';
 export * from './actions';
 export * from './view';
 export * from './llm';
+export * from './scenario';
