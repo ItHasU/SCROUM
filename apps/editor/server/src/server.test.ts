@@ -9,6 +9,9 @@ import { resolveProject } from '@scroum/build';
 import { readGameZip } from '@scroum/schema';
 import { startEditorServer, type EditorServer } from './index';
 
+/** Ignore un éventuel `dist/` local (build git-ignoré) lors de la copie de l'exemple. */
+const noDist = (src: string): boolean => !/[\\/]dist$/.test(src);
+
 const demo = fileURLToPath(new URL('../../../../examples/demo/', import.meta.url));
 let tmp: string;
 let repo: string;
@@ -22,7 +25,7 @@ const git = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'u
 beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'scroum-srv-'));
   repo = join(tmp, 'demo');
-  cpSync(demo, repo, { recursive: true });
+  cpSync(demo, repo, { recursive: true, filter: noDist });
   writeFileSync(join(repo, 'content/assets/images/img_port_bg.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'));
   git('init', '-q');
   git('add', '-A');
@@ -32,6 +35,7 @@ beforeAll(async () => {
     fake,
     `#!/usr/bin/env node
 import { writeFileSync, appendFileSync } from 'node:fs';
+
 writeFileSync(process.env.FAKE_ARGS_FILE, JSON.stringify(process.argv.slice(2)));
 console.log(JSON.stringify({ type: 'system', subtype: 'init' }));
 appendFileSync('content/bible/pitch.md', '\\nAjout par Claude\\n');

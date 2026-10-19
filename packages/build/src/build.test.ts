@@ -8,13 +8,16 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FORMAT_VERSION, FormatVersionError, GameZipError, readGameZip } from '@scroum/schema';
 import { buildProject } from './build';
 
+/** Ignore un éventuel `dist/` local (build git-ignoré) lors de la copie de l'exemple. */
+const noDist = (src: string): boolean => !/[\\/]dist$/.test(src);
+
 const demo = fileURLToPath(new URL('../../../examples/demo/', import.meta.url));
 let tmp: string;
 let repo: string;
 beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'scroum-build-'));
   repo = join(tmp, 'demo');
-  cpSync(demo, repo, { recursive: true });
+  cpSync(demo, repo, { recursive: true, filter: noDist });
   const png = await sharp({ create: { width: 2000, height: 1000, channels: 3, background: '#336699' } }).png().toBuffer();
   writeFileSync(join(repo, 'content/assets/images/img_port_bg.png'), png);
   mkdirSync(join(repo, 'content/assets/_candidates/img_port_bg'), { recursive: true });
@@ -56,7 +59,7 @@ describe('buildProject', () => {
 
   it('refuse (aucun zip) si la validation échoue', async () => {
     const bad = join(tmp, 'bad');
-    cpSync(demo, bad, { recursive: true });
+    cpSync(demo, bad, { recursive: true, filter: noDist });
     writeFileSync(join(bad, 'content/scenes/port.yaml'), 'id: [pas, valide');
     const r = await buildProject(bad);
     expect(r.ok).toBe(false);
