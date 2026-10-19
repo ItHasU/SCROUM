@@ -1,0 +1,90 @@
+name: Desktop
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Paquets ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: win
+            args: --win nsis portable
+            files: |
+              apps/desktop/release/*.exe
+          - os: ubuntu-latest
+            target: linux
+            args: --linux AppImage deb
+            files: |
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*.deb
+          - os: macos-latest
+            target: mac
+            args: --mac dmg
+            files: |
+              apps/desktop/release/*.dmg
+    defaults:
+      run:
+        shell: bash
+    env:
+      # macOS : pas de certificat, application non signée.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Empaqueter (${{ matrix.target }})
+        run: pnpm --filter @scroum/desktop dist -- ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: release
+      - name: Lister les paquets
+        run: ls -l release
+      - name: Publier la préversion « desktop-latest »
+        if: github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete desktop-latest --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create desktop-latest release/* --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Application de bureau (build ${GITHUB_SHA::7})" \
+            --notes "Paquets Windows (installeur NSIS + portable), Linux (AppImage + deb) et macOS (dmg, non signé : voir le README pour le contournement de Gatekeeper). Build automatique de main."
+      - name: Publier la release versionnée
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/* --repo "$GITHUB_REPOSITORY" \
+            --title "SCROUM ${GITHUB_REF_NAME}" --generate-notes

@@ -1,5 +1,6 @@
 appId: fr.ithasu.scroum
 productName: SCROUM
+# Tout le code est déjà empaqueté par esbuild : aucune dépendance d'exécution (donc aucun module natif) dans l'app.
 copyright: ItHasU
 directories:
   output: release
@@ -29,6 +30,8 @@ nsis:
 portable:
   artifactName: SCROUM-${version}-win-${arch}-portable.${ext}
 linux:
+  executableName: scroum
+  syncDesktopName: true
   icon: build/icon.png
   category: Game
   maintainer: ItHasU <noreply@github.com>

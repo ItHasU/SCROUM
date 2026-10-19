@@ -180,26 +180,25 @@ importers:
         version: 5.0.5(@types/node@24.19.2)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/desktop:
-    dependencies:
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.64.1
+        version: 1.64.1
       '@scroum/build':
         specifier: workspace:*
         version: link:../../packages/build
       '@scroum/editor-server':
         specifier: workspace:*
         version: link:../editor/server
-      '@scroum/schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-    devDependencies:
-      '@playwright/test':
-        specifier: ^1.64.1
-        version: 1.64.1
       '@scroum/editor-web':
         specifier: workspace:*
         version: link:../editor/web
       '@scroum/player':
         specifier: workspace:*
         version: link:../player
+      '@scroum/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       electron:
         specifier: ^44.9.0
         version: 44.9.0(supports-color@7.2.0)

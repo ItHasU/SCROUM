@@ -16,18 +16,17 @@
     "fetch-electron": "node node_modules/electron/install.js",
     "smoke": "node scripts/smoke.mjs"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@scroum/build": "workspace:*",
     "@scroum/editor-server": "workspace:*",
-    "@scroum/schema": "workspace:*"
-  },
-  "devDependencies": {
     "@scroum/editor-web": "workspace:*",
     "@scroum/player": "workspace:*",
+    "@scroum/schema": "workspace:*",
     "electron": "^44.9.0",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
-    "vite": "^8.3.4",
-    "@playwright/test": "^1.64.1"
-  }
+    "vite": "^8.3.4"
+  },
+  "desktopName": "scroum.desktop"
 }
