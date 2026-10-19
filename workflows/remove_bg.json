@@ -1,0 +1,43 @@
+{
+  "_scroum": {
+    "description": "Détourage de sprite (fond transparent). Nécessite le noeud personnalisé ComfyUI-RMBG (BiRefNetRMBG).",
+    "custom_nodes": [
+      "ComfyUI-RMBG (https://github.com/1038lab/ComfyUI-RMBG) : BiRefNetRMBG"
+    ],
+    "defaults": {
+      "rmbg_model": "BiRefNet-general"
+    },
+    "references": 1
+  },
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "{{ref_image_1}}"
+    }
+  },
+  "2": {
+    "class_type": "BiRefNetRMBG",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "model": "{{rmbg_model}}",
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "invert_output": false,
+      "refine_foreground": false,
+      "background": "Alpha"
+    }
+  },
+  "3": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "2",
+        0
+      ],
+      "filename_prefix": "scroum/remove_bg"
+    }
+  }
+}

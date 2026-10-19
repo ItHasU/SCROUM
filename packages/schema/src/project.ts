@@ -4,6 +4,15 @@
  */
 import { z } from 'zod';
 
+/** Post-traitement d'image au build (par monde). */
+export const PostprocessSchema = z.strictObject({
+  /** Pixelisation : taille d'un « gros pixel » en pixels de sortie (>= 2). */
+  pixelate: z.number().int().min(2).max(64).optional(),
+  /** Quantification de palette : nombre de couleurs (2 à 256). */
+  colors: z.number().int().min(2).max(256).optional(),
+});
+export type Postprocess = z.output<typeof PostprocessSchema>;
+
 export const ProjectConfigSchema = z.strictObject({
   formatVersion: z.number().int().min(1),
   /** Nom de sortie du zip : `dist/<name>-<version>.scroum.zip`. */
@@ -23,10 +32,20 @@ export const ProjectConfigSchema = z.strictObject({
     .strictObject({
       /** Format de sortie des images au build. */
       format: z.enum(['webp', 'png', 'jpg']).default('webp'),
+      /** Post-traitement par monde (id de monde → réglages) ; `default` s'applique aux autres. Prioritaire sur bible/style.md. */
+      postprocess: z.record(z.string(), PostprocessSchema).optional(),
       /** Largeur maximale des décors au build. */
       max_width: z.number().int().positive().default(1280),
     })
     .default({ format: 'webp', max_width: 1280 }),
+  /** Génération d'images : valeurs par défaut des paramètres de workflow (modèles) ; l'URL est dans scroum.local.yaml. */
+  comfyui: z
+    .strictObject({
+      /** Valeurs de `{{unet}}`, `{{clip}}`, `{{vae}}`, `{{checkpoint}}`… (surchargées par scroum.local.yaml). */
+      models: z.record(z.string(), z.string()).default({}),
+      timeout_s: z.number().positive().optional(),
+    })
+    .optional(),
   notes: z.string().optional(),
 });
 export type ProjectConfig = z.output<typeof ProjectConfigSchema>;
@@ -35,6 +54,8 @@ export const LocalConfigSchema = z.looseObject({
   comfyui: z
     .looseObject({
       url: z.string().default('http://127.0.0.1:8188'),
+      models: z.record(z.string(), z.string()).optional(),
+      timeout_s: z.number().positive().optional(),
     })
     .optional(),
 });

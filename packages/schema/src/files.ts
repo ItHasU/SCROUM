@@ -688,6 +688,8 @@ export const AssetSchema = z
     model: optText,
     width: z.number().int().positive().nullish().transform((v) => v ?? null),
     height: z.number().int().positive().nullish().transform((v) => v ?? null),
+    /** Monde (préfixe/suffixe de style.md, post-traitement) ; sinon déduit des scènes/personnages qui l'utilisent. */
+    world: z.string().nullish().transform((v) => v ?? null),
     notes,
   })
   .transform((a): Omit<Asset, 'id' | 'source' | 'file'> => {
