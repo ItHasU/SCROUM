@@ -26,7 +26,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | Paquet | Rôle | État |
 |---|---|---|
 | `@scroum/schema` | Types canoniques, schémas zod des fichiers, normalisation, `loadContent`, `FORMAT_VERSION`, `migrate`, visiteurs | M0 ✔ |
-| `@scroum/validate` | Validation niveau 1 (schéma, règles, références, obtenabilité) ; `@scroum/validate/node` pour la lecture disque ; point d'extension `Analyzer` | M0 ✔ (jouabilité : M1b) |
+| `@scroum/validate` | Validation niveau 1 (schéma, règles, références, obtenabilité) ; `@scroum/validate/node` pour la lecture disque ; point d'extension `Analyzer` | M0 ✔, jouabilité (BFS sur `step`, soft-locks, chemins rejouables) M1b ✔ |
 | `@scroum/build` | Résolution d'un dépôt de jeu (`resolveProject`) et `buildProject` (validation → images sharp/webp → zip) | M2 ✔ |
 | `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit` ✔ ; `gen-image` (message « non implémenté », M5) | M2 ✔ |
 | `@scroum/engine` | Machine à états pure : `start`/`step`/`listActions`, vues, `KeywordBackend`, harnais de scénarios | M1 ✔ (logique) |
@@ -36,7 +36,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
 
 Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
-`cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépendra de `engine` pour l'analyse de jouabilité.
+`cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépend aussi de `engine` (analyse de jouabilité).
 
 ## Branches
 

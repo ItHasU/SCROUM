@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Condition } from '@scroum/schema';
-import { canonicalize, compare, createInitialState, evalCondition, stateKey, type GameState } from '../src';
+import { canonicalize, cloneState, compare, createInitialState, evalCondition, stateKey, type GameState } from '../src';
 import { loadExample, makeGame } from './helpers';
 
 const game = makeGame(
@@ -61,6 +61,23 @@ describe('stateKey / canonicalize', () => {
     expect(stateKey(a)).not.toBe(stateKey(b));
     expect(Object.keys(canonicalize({ b: 1, a: { d: 1, c: 2 } }))).toEqual(['a', 'b']);
     expect(canonicalize([{ b: 1, a: 2 }])).toEqual([{ a: 2, b: 1 }]);
+  });
+  it('équivaut à JSON.stringify(canonicalize(état))', () => {
+    const a = createInitialState(game) as GameState & Record<string, unknown>;
+    a.dialogue = { id: 'd', node: 'n', pending_scene: null };
+    a.visibility = { z: { b: false, a: true } };
+    a.extra = { u: undefined, l: [1, undefined, 'é"\n'], n: NaN };
+    expect(stateKey(a)).toBe(JSON.stringify(canonicalize(a)));
+  });
+  it('cloneState copie en profondeur, champs inconnus compris', () => {
+    const a = createInitialState(game) as GameState & Record<string, unknown>;
+    a.extra = { deep: [1, { x: 2 }] };
+    const b = cloneState(a) as typeof a;
+    expect(b).toEqual(a);
+    (b.extra as { deep: unknown[] }).deep.push(3);
+    b.flags.push('zz');
+    expect((a.extra as { deep: unknown[] }).deep).toHaveLength(2);
+    expect(a.flags).not.toContain('zz');
   });
 });
 

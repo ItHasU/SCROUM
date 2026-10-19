@@ -1,4 +1,5 @@
 import type { ContentError, GameData, Severity } from '@scroum/schema';
+import type { PlayabilityOptions, PlayabilityReport } from './playability';
 
 /** Un problème de validation (même forme que les erreurs de chargement). */
 export type Issue = ContentError;
@@ -13,6 +14,8 @@ export interface ValidationReport {
   game: GameData | null;
   /** Analyseurs non exécutés (ex. références tant que le schéma est en erreur), avec la raison. */
   skipped: { analyzer: string; reason: string }[];
+  /** Rapport d'analyse de jouabilité (null si non demandée ou non exécutée). */
+  playability: PlayabilityReport | null;
 }
 
 /** Contexte fourni aux analyseurs. */
@@ -40,4 +43,10 @@ export interface ValidateOptions {
   analyzers?: Analyzer[];
   /** Analyseurs ajoutés à la liste (ex. l'analyse de jouabilité). */
   extraAnalyzers?: Analyzer[];
+  /**
+   * Analyse de jouabilité (BFS sur le moteur) : `true` (bornes par défaut) ou
+   * options. Désactivée par défaut (coûteuse ; l'éditeur ne la lance pas à chaque
+   * modification). Le rapport complet est dans `ValidationReport.playability`.
+   */
+  playability?: boolean | PlayabilityOptions;
 }

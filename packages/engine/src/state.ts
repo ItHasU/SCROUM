@@ -124,9 +124,21 @@ export function createInitialState(game: GameData): GameState {
   return state;
 }
 
-/** Copie profonde d'un état (le moteur ne modifie jamais l'état reçu). */
+/** Copie profonde d'une valeur JSON (plus rapide que `structuredClone` sur de petits objets). */
+function cloneJson<T>(value: T): T {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(cloneJson) as T;
+  const out: Record<string, unknown> = {};
+  for (const k in value) if (Object.hasOwn(value, k)) out[k] = cloneJson((value as Record<string, unknown>)[k]);
+  return out as T;
+}
+
+/**
+ * Copie profonde d'un état (le moteur ne modifie jamais l'état reçu). L'état
+ * étant du JSON simple, une copie récursive suffit (champs inconnus compris).
+ */
 export function cloneState(state: GameState): GameState {
-  return structuredClone(state);
+  return cloneJson(state);
 }
 
 /** Copie d'une valeur JSON avec les clés d'objet triées récursivement. */

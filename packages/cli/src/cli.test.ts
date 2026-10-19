@@ -2,8 +2,10 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { main, type Io } from './index';
+
+vi.setConfig({ testTimeout: 60_000 });
 
 const examples = fileURLToPath(new URL('../../../examples/', import.meta.url));
 const tmp = mkdtempSync(join(tmpdir(), 'scroum-cli-'));
@@ -41,12 +43,49 @@ describe('scroum validate', () => {
     expect(out).toMatch(/Contenu invalide \(1 erreur/);
   });
 
-  it('--json produit un rapport structuré', async () => {
+  it('--json produit un rapport structuré, avec la jouabilité', async () => {
     const t = io();
-    expect(await main(['validate', 'demo-softlock', '--json'], t)).toBe(0);
+    expect(await main(['validate', 'demo', '--json'], t)).toBe(0);
     const report = JSON.parse(t.stdout.join('\n'));
-    expect(report).toMatchObject({ ok: true, errors: [], warnings: [], skipped: [] });
+    expect(report).toMatchObject({ ok: true, errors: [], skipped: [] });
+    expect(report.playability).toMatchObject({ complete: true, winReachable: true, softlocks: [] });
     expect(report.game).toBeUndefined();
+  });
+
+  it('démo : résumé de jouabilité, fin win atteignable, aucun soft-lock', async () => {
+    const t = io();
+    expect(await main(['validate', 'demo'], t)).toBe(0);
+    const out = t.stdout.join('\n');
+    expect(out).toMatch(/Jouabilité : \d+ états? explorés.*exploration complète/);
+    expect(out).toMatch(/fin win atteignable : phare_rallume/);
+    expect(out).toMatch(/aucun soft-lock/);
+  });
+
+  it('demo-softlock : soft-lock avec son chemin lisible, code 1 (critère M1b)', async () => {
+    const t = io();
+    expect(await main(['validate', 'demo-softlock'], t)).toBe(1);
+    const out = t.stdout.join('\n');
+    expect(out).toMatch(/\[softlock\]/);
+    expect(out).toMatch(/take cle → use cle on porte1/);
+    expect(out).toMatch(/1 soft-lock/);
+  });
+
+  it('--path-out écrit les chemins rejouables ; --no-playability les désactive', async () => {
+    const f = join(tmp, 'paths.json');
+    expect(await main(['validate', 'demo-softlock', '--path-out', f], io())).toBe(1);
+    const paths = JSON.parse(readFileSync(f, 'utf8'));
+    expect(paths.softlocks.length).toBeGreaterThan(0);
+    const t = io();
+    expect(await main(['validate', 'demo-softlock', '--no-playability', '--json'], t)).toBe(0);
+    expect(JSON.parse(t.stdout.join('\n')).playability).toBeNull();
+    expect(await main(['validate', 'demo', '--no-playability', '--path-out', f], io())).toBe(2);
+  });
+
+  it('bornes dépassées : exploration incomplète signalée', async () => {
+    const t = io();
+    await main(['validate', 'demo', '--max-states', '5'], t);
+    expect(t.stdout.join('\n')).toMatch(/exploration INCOMPLÈTE/);
+    expect(await main(['validate', 'demo', '--max-states', 'abc'], io())).toBe(2);
   });
 
   it('projet introuvable ou invalide', async () => {

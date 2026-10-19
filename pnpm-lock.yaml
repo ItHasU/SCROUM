@@ -343,6 +343,9 @@ importers:
 
   packages/validate:
     dependencies:
+      '@scroum/engine':
+        specifier: workspace:*
+        version: link:../engine
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema

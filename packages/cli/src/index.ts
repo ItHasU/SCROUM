@@ -1,16 +1,18 @@
 /**
  * @scroum/cli — binaire `scroum`.
  *
- *   scroum validate [chemin] [--json] [--quiet]
+ *   scroum validate [chemin] [--json] [--quiet] [--no-playability] [--path-out f.json] [--max-states N] [--max-depth N] [--time-limit S]
  *   scroum build [chemin]
  *   scroum edit [chemin] [--port N] [--host H] [--no-open]
  *   scroum gen-image …   (jalon M5, non implémentée)
  *
  * `main` est testable : entrées/sorties injectées, renvoie le code de retour.
  */
+import { writeFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { FORMAT_VERSION } from '@scroum/schema';
 import { buildProject } from '@scroum/build';
+import { exportPaths, type PlayabilityOptions } from '@scroum/validate';
 import { validateDir } from '@scroum/validate/node';
 import { ProjectError, resolveProject, type ResolvedProject } from './project';
 import { formatReport, makeStyle } from './report';
@@ -39,11 +41,17 @@ const defaultIo = (): Io => ({
 const HELP = `scroum — outils du moteur d'aventure SCROUM (format ${FORMAT_VERSION})
 
 Usage :
-  scroum validate [chemin] [--json] [--quiet]
+  scroum validate [chemin] [--json] [--quiet] [--no-playability] [--path-out <f.json>]
       Valide le contenu d'un jeu. [chemin] : racine d'un dépôt de jeu
       (avec scroum.project.yaml) ou dossier content/ ; défaut : dossier courant.
-      --json   rapport structuré { ok, errors, warnings, skipped } sur stdout
+      --json   rapport structuré { ok, errors, warnings, skipped, playability } sur stdout
       --quiet  n'affiche que les erreurs
+      Analyse de jouabilité (exploration des états du moteur), sauf --no-playability :
+      --path-out <f.json>  écrit les chemins rejouables (fin win, fins, soft-locks) :
+                           actions du moteur, formes courtes et scénarios runScenario
+      --max-states N       bornes de l'exploration (défauts : 100000 états,
+      --max-depth N        profondeur 1000, 30 s) ; au-delà, le rapport dit
+      --time-limit S       « exploration incomplète » au lieu de conclure
   scroum build [chemin]
       Valide (échec = pas de zip), convertit les images (sharp, webp) et produit
       <output>/<nom>-<version>.scroum.zip (défaut : dist/).
@@ -57,7 +65,7 @@ Code de retour : 0 si tout va bien, 1 si erreurs de contenu, 2 si usage incorrec
 
 
 /** Options à valeur (`--port 5000` ou `--port=5000`) ; les autres `--x` sont des drapeaux. */
-const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt']);
+const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt', 'path-out', 'max-states', 'max-depth', 'time-limit']);
 
 function parseArgs(argv: string[]): { positional: string[]; flags: Set<string>; values: Map<string, string> } {
   const positional: string[] = [];
@@ -139,12 +147,47 @@ async function editCommand(args: string[], flags: Set<string>, values: Map<strin
   return 0;
 }
 
-async function validateCommand(args: string[], flags: Set<string>, io: Io): Promise<number> {
-  const unknown = [...flags].filter((f) => f !== 'json' && f !== 'quiet');
+const VALIDATE_FLAGS = ['json', 'quiet', 'no-playability', 'path-out', 'max-states', 'max-depth', 'time-limit'];
+
+/** Options de jouabilité de la ligne de commande ; null si une valeur est invalide (message déjà affiché). */
+function playabilityOptions(flags: Set<string>, values: Map<string, string>, io: Io): PlayabilityOptions | false | null {
+  if (flags.has('no-playability')) {
+    if (flags.has('path-out')) {
+      io.err('--path-out est incompatible avec --no-playability');
+      return null;
+    }
+    return false;
+  }
+  const opts: PlayabilityOptions = {};
+  for (const [flag, key, scale] of [
+    ['max-states', 'maxStates', 1],
+    ['max-depth', 'maxDepth', 1],
+    ['time-limit', 'timeLimitMs', 1000],
+  ] as const) {
+    if (!flags.has(flag)) continue;
+    const raw = values.get(flag);
+    const v = Number(raw);
+    if (raw === undefined || !Number.isFinite(v) || v <= 0) {
+      io.err(`valeur invalide pour --${flag} : ${raw ?? '(absente)'}`);
+      return null;
+    }
+    opts[key] = Math.round(v * scale);
+  }
+  if (flags.has('path-out') && !values.get('path-out')) {
+    io.err('--path-out attend un nom de fichier');
+    return null;
+  }
+  return opts;
+}
+
+async function validateCommand(args: string[], flags: Set<string>, values: Map<string, string>, io: Io): Promise<number> {
+  const unknown = [...flags].filter((f) => !VALIDATE_FLAGS.includes(f));
   if (unknown.length > 0 || args.length > 1) {
     io.err(`option ou argument inattendu : ${[...unknown.map((f) => `--${f}`), ...args.slice(1)].join(' ')}`);
     return 2;
   }
+  const playability = playabilityOptions(flags, values, io);
+  if (playability === null) return 2;
   const target = args[0] ?? '.';
   const path = isAbsolute(target) ? target : resolve(io.cwd, target);
   let project;
@@ -155,13 +198,21 @@ async function validateCommand(args: string[], flags: Set<string>, io: Io): Prom
       io.err(`scroum validate : ${e.message}`);
       if (flags.has('json')) {
         const error = { severity: 'error', code: 'project', file: '', path: '', message: e.message };
-        io.out(JSON.stringify({ ok: false, errors: [error], warnings: [], skipped: [] }, null, 2));
+        io.out(JSON.stringify({ ok: false, errors: [error], warnings: [], skipped: [], playability: null }, null, 2));
       }
       return 1;
     }
     throw e;
   }
-  const report = await validateDir(project.contentDir);
+  const report = await validateDir(project.contentDir, { playability });
+  const pathOut = values.get('path-out');
+  if (pathOut && report.game) {
+    const file = isAbsolute(pathOut) ? pathOut : resolve(io.cwd, pathOut);
+    if (report.playability) {
+      writeFileSync(file, `${JSON.stringify(exportPaths(report.game, report.playability, playability ? playability.engine : undefined), null, 2)}\n`);
+      io.err(`chemins de jouabilité écrits dans ${file}`);
+    } else io.err(`--path-out : analyse de jouabilité non exécutée (erreurs à corriger d'abord), ${file} non écrit`);
+  }
   if (flags.has('json')) {
     const { game: _game, ...rest } = report;
     io.out(JSON.stringify(rest, null, 2));
@@ -188,7 +239,7 @@ export async function main(argv: string[], io: Io = defaultIo()): Promise<number
   }
   switch (command) {
     case 'validate':
-      return validateCommand(args, flags, io);
+      return validateCommand(args, flags, values, io);
     case 'build':
       return buildCommand(args, flags, io);
     case 'edit':
