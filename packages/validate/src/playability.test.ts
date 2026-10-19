@@ -395,3 +395,33 @@ hotspots:
     expect(analyzePlayability(g2)).toMatchObject({ complete: true, stats: { states: 5 } });
   });
 });
+
+describe('nœuds routeurs', () => {
+  it('un nœud sans répliques à next conditionnel n’est pas signalé « jamais atteint »', () => {
+    const game = load(
+      files({
+        'characters/pnj.yaml': 'name: Pnj\n',
+        'dialogues/d.yaml': `speaker: pnj
+start: route
+nodes:
+  route:
+    next:
+      - { if: { flag: x }, next: a }
+      - { next: b }
+  a: { lines: ["A."] }
+  b:
+    lines: ["B."]
+    choices: [ { label: "Aiguiller", next: route2 } ]
+  route2:
+    next: [ { next: a } ]
+`,
+        'scenes/a.yaml': `world: w
+hotspots:
+  - { id: h, label: H, rect: [0.1, 0.1, 0.2, 0.2], actions: { talk: { start_dialogue: d } } }
+`,
+      }),
+    );
+    const r = analyzePlayability(game);
+    expect(r.unreached.nodes.filter((n) => n.node.startsWith('route'))).toEqual([]);
+  });
+});
