@@ -1,0 +1,15 @@
+{
+  "name": "SCROUM",
+  "short_name": "SCROUM",
+  "description": "Aventure point-and-click à dialogues semi-scriptés",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#11131a",
+  "theme_color": "#11131a",
+  "lang": "fr",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

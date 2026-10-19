@@ -41,7 +41,7 @@ console.log(JSON.stringify({ type: 'result', result: 'fait' }));
   );
   chmodSync(fake, 0o755);
   process.env.FAKE_ARGS_FILE = join(tmp, 'args.json');
-  srv = await startEditorServer({ project: resolveProject(repo), port: 0, claudeCommand: fake, debounceMs: 30 });
+  srv = await startEditorServer({ project: resolveProject(repo), port: 0, claudeCommand: fake, debounceMs: 30, playerDir: join(tmp, 'pas-de-player') });
 });
 afterAll(async () => {
   await srv.close();
