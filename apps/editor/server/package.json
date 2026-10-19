@@ -11,5 +11,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p ."
   },
-  "dependencies": {"@scroum/schema": "workspace:*", "@scroum/validate": "workspace:*"}
+  "dependencies": {
+    "@scroum/build": "workspace:*",
+    "@scroum/schema": "workspace:*",
+    "@scroum/validate": "workspace:*",
+    "chokidar": "^5.0.0",
+    "fflate": "^0.8.3",
+    "vite": "^8.3.4",
+    "yaml": "^2.9.1"
+  }
 }

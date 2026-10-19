@@ -14,6 +14,7 @@
 export * from './types';
 export * from './version';
 export * from './visit';
+export * from './zip';
 export * from './project';
 export {
   ID_PATTERN,

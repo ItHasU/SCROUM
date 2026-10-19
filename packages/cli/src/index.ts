@@ -2,18 +2,23 @@
  * @scroum/cli — binaire `scroum`.
  *
  *   scroum validate [chemin] [--json] [--quiet]
- *   scroum build | edit | gen-image   (pas encore implémentées)
+ *   scroum build [chemin]
+ *   scroum edit [chemin] [--port N] [--host H] [--no-open]
+ *   scroum gen-image …   (jalon M5, non implémentée)
  *
  * `main` est testable : entrées/sorties injectées, renvoie le code de retour.
  */
 import { isAbsolute, resolve } from 'node:path';
 import { FORMAT_VERSION } from '@scroum/schema';
+import { buildProject } from '@scroum/build';
 import { validateDir } from '@scroum/validate/node';
-import { ProjectError, resolveProject } from './project';
+import { ProjectError, resolveProject, type ResolvedProject } from './project';
 import { formatReport, makeStyle } from './report';
 
 export { resolveProject, ProjectError, type ResolvedProject } from './project';
 export { formatReport } from './report';
+
+export const GEN_IMAGE_MESSAGE = 'génération d\'images non implémentée (M5)';
 
 export interface Io {
   out(s: string): void;
@@ -39,24 +44,99 @@ Usage :
       (avec scroum.project.yaml) ou dossier content/ ; défaut : dossier courant.
       --json   rapport structuré { ok, errors, warnings, skipped } sur stdout
       --quiet  n'affiche que les erreurs
-  scroum build [chemin]        Produit dist/<nom>-<version>.scroum.zip   (jalon M2, non implémenté)
-  scroum edit [chemin]         Lance l'éditeur local                      (jalon M2, non implémenté)
-  scroum gen-image --asset <id> [--n 4] [--prompt "…"]                    (jalon M5, non implémenté)
+  scroum build [chemin]
+      Valide (échec = pas de zip), convertit les images (sharp, webp) et produit
+      <output>/<nom>-<version>.scroum.zip (défaut : dist/).
+  scroum edit [chemin] [--port N] [--host H]
+      Lance l'éditeur local (http://127.0.0.1:5317 par défaut ; port : --port,
+      puis editor.port de scroum.project.yaml). Le player est servi sous /play/.
+  scroum gen-image --asset <id> [--n 4] [--prompt "…"]   (jalon M5, non implémenté)
   scroum --help | --version
 
 Code de retour : 0 si tout va bien, 1 si erreurs de contenu, 2 si usage incorrect.`;
 
-const MILESTONES: Record<string, string> = { build: 'M2', edit: 'M2', 'gen-image': 'M5' };
 
-function parseArgs(argv: string[]): { positional: string[]; flags: Set<string> } {
+/** Options à valeur (`--port 5000` ou `--port=5000`) ; les autres `--x` sont des drapeaux. */
+const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt']);
+
+function parseArgs(argv: string[]): { positional: string[]; flags: Set<string>; values: Map<string, string> } {
   const positional: string[] = [];
   const flags = new Set<string>();
-  for (const a of argv) {
-    if (a.startsWith('--')) flags.add(a.slice(2));
-    else if (a === '-h') flags.add('help');
+  const values = new Map<string, string>();
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (a.startsWith('--')) {
+      const [name, inline] = a.slice(2).split(/=(.*)/s);
+      if (VALUE_OPTS.has(name!)) {
+        const v = inline ?? argv[++i];
+        if (v !== undefined) values.set(name!, v);
+        flags.add(name!);
+      } else flags.add(name!);
+    } else if (a === '-h') flags.add('help');
     else positional.push(a);
   }
-  return { positional, flags };
+  return { positional, flags, values };
+}
+
+function projectOrReport(target: string | undefined, io: Io, cmd: string): ResolvedProject | null {
+  const path = isAbsolute(target ?? '.') ? target! : resolve(io.cwd, target ?? '.');
+  try {
+    return resolveProject(path);
+  } catch (e) {
+    if (e instanceof ProjectError) {
+      io.err(`scroum ${cmd} : ${e.message}`);
+      return null;
+    }
+    throw e;
+  }
+}
+
+async function buildCommand(args: string[], flags: Set<string>, io: Io): Promise<number> {
+  const unknown = [...flags].filter((f) => f !== 'quiet');
+  if (unknown.length > 0 || args.length > 1) {
+    io.err(`option ou argument inattendu : ${[...unknown.map((f) => `--${f}`), ...args.slice(1)].join(' ')}`);
+    return 2;
+  }
+  const project = projectOrReport(args[0], io, 'build');
+  if (!project) return 1;
+  const st = makeStyle(io.color);
+  const r = await buildProject(project);
+  if (!r.ok) {
+    io.err(st.bold('scroum build : validation en échec, aucun zip produit.'));
+    io.out(formatReport(r.report, { style: st, quiet: true }));
+    return 1;
+  }
+  for (const w of r.warnings) io.err(`avertissement : ${w}`);
+  io.out(`${st.bold('✔ Build')} ${r.manifest!.title} ${r.manifest!.version} (${r.manifest!.images.length} image(s))`);
+  io.out(r.zipPath!);
+  return 0;
+}
+
+async function editCommand(args: string[], flags: Set<string>, values: Map<string, string>, io: Io): Promise<number> {
+  const unknown = [...flags].filter((f) => !['port', 'host', 'no-open'].includes(f));
+  if (unknown.length > 0 || args.length > 1) {
+    io.err(`option ou argument inattendu : ${[...unknown.map((f) => `--${f}`), ...args.slice(1)].join(' ')}`);
+    return 2;
+  }
+  const project = projectOrReport(args[0], io, 'edit');
+  if (!project) return 1;
+  const portArg = values.get('port');
+  const port = portArg === undefined ? undefined : Number(portArg);
+  if (port !== undefined && !(Number.isInteger(port) && port >= 0 && port <= 65535)) {
+    io.err(`port invalide : ${portArg}`);
+    return 2;
+  }
+  const { startEditorServer } = await import('@scroum/editor-server');
+  const server = await startEditorServer({ project, port, host: values.get('host') });
+  io.out(`Éditeur SCROUM : ${server.url}`);
+  io.out(`Player (playtest) : ${server.url}/play/?source=/api`);
+  io.out('Ctrl+C pour arrêter.');
+  await new Promise<void>((done) => {
+    const stop = () => void server.close().then(done);
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  });
+  return 0;
 }
 
 async function validateCommand(args: string[], flags: Set<string>, io: Io): Promise<number> {
@@ -96,7 +176,7 @@ async function validateCommand(args: string[], flags: Set<string>, io: Io): Prom
 }
 
 export async function main(argv: string[], io: Io = defaultIo()): Promise<number> {
-  const { positional, flags } = parseArgs(argv);
+  const { positional, flags, values } = parseArgs(argv);
   const [command, ...args] = positional;
   if (flags.has('version')) {
     io.out(`scroum 0.0.0 (format ${FORMAT_VERSION})`);
@@ -110,9 +190,11 @@ export async function main(argv: string[], io: Io = defaultIo()): Promise<number
     case 'validate':
       return validateCommand(args, flags, io);
     case 'build':
+      return buildCommand(args, flags, io);
     case 'edit':
+      return editCommand(args, flags, values, io);
     case 'gen-image':
-      io.err(`scroum ${command} : pas encore implémentée (jalon ${MILESTONES[command]}).`);
+      io.err(GEN_IMAGE_MESSAGE);
       return 1;
     default:
       io.err(`commande inconnue : ${command}\n\n${HELP}`);

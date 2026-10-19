@@ -16,9 +16,9 @@ export const ProjectConfigSchema = z.strictObject({
   workflows: z.string().default('workflows'),
   editor: z
     .strictObject({
-      port: z.number().int().min(1).max(65535).default(5180),
+      port: z.number().int().min(1).max(65535).default(5317),
     })
-    .default({ port: 5180 }),
+    .default({ port: 5317 }),
   images: z
     .strictObject({
       /** Format de sortie des images au build. */

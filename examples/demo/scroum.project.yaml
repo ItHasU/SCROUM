@@ -5,4 +5,4 @@ content: content
 output: dist
 workflows: workflows
 editor:
-  port: 5180
+  port: 5317

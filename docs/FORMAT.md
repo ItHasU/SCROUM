@@ -69,7 +69,7 @@ content: content          # défaut : content
 output: dist              # défaut : dist
 workflows: workflows      # défaut : workflows
 editor:
-  port: 5180              # défaut : 5180 (l'éditeur n'écoute que sur localhost)
+  port: 5317              # défaut : 5317 (l'éditeur n'écoute que sur localhost)
 images:
   format: webp            # webp | png | jpg (défaut webp)
   max_width: 1280         # largeur max des images au build
