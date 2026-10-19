@@ -1,6 +1,7 @@
 /** Serveur HTTP local de l'éditeur SCROUM (http natif, 127.0.0.1 par défaut). */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { createServer as createNetServer } from 'node:net';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
@@ -394,12 +395,13 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
           if (await serveStatic(res, webDir, rel)) return;
           throw new HttpError(404, 'introuvable');
         }
-        // Front de l'éditeur : Vite en middlewareMode (pas de HMR, pour ne pas entrer en conflit avec celui du player).
+        // Front de l'éditeur : Vite en middlewareMode. Son client HMR (injecté malgré `hmr: false`) vise le port 24678 par
+        // défaut, que se disputent plusieurs éditeurs lancés en parallèle (erreurs WebSocket 400) : on lui donne un port libre.
         webVite ??= await (await import('vite')).createServer({
           root: webRoot,
           appType: 'spa',
           logLevel: 'warn',
-          server: { middlewareMode: true, hmr: false, watch: null },
+          server: { middlewareMode: true, hmr: { port: await freePort() }, watch: null },
           optimizeDeps: { include: ['cytoscape', 'cytoscape-elk', 'elkjs/lib/elk.bundled.js', 'yaml'] },
         });
         return void webVite.middlewares(req, res, () => {
@@ -439,4 +441,16 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+/** Port TCP libre attribué par l'OS. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createNetServer();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => {
+      const { port } = srv.address() as AddressInfo;
+      srv.close(() => resolve(port));
+    });
+  });
 }

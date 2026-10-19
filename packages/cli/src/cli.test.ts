@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { main, type Io } from './index';
 
+/** Ignore un éventuel `dist/` local (build git-ignoré) lors de la copie de l'exemple. */
+const noDist = (src: string): boolean => !/[\\/]dist$/.test(src);
+
 vi.setConfig({ testTimeout: 60_000 });
 
 const examples = fileURLToPath(new URL('../../../examples/', import.meta.url));
@@ -32,7 +35,7 @@ describe('scroum validate', () => {
 
   it('code de retour 1 et sortie lisible en cas d’erreur', async () => {
     const dir = join(tmp, 'casse');
-    cpSync(join(examples, 'demo'), dir, { recursive: true });
+    cpSync(join(examples, 'demo'), dir, { recursive: true, filter: noDist });
     const scene = join(dir, 'content/scenes/port.yaml');
     writeFileSync(scene, readFileSync(scene, 'utf8').replace('to: phare_bas', 'to: nulle_part'));
     const t = io();
@@ -93,7 +96,7 @@ describe('scroum validate', () => {
     expect(await main(['validate'], t)).toBe(1);
     expect(t.stderr[0]).toMatch(/ni scroum\.project\.yaml/);
     const bad = join(tmp, 'mauvais');
-    cpSync(join(examples, 'demo-softlock'), bad, { recursive: true });
+    cpSync(join(examples, 'demo-softlock'), bad, { recursive: true, filter: noDist });
     writeFileSync(join(bad, 'scroum.project.yaml'), 'formatVersion: 1\nname: "Pas Bon"\n');
     const t2 = io();
     expect(await main(['validate', bad], t2)).toBe(1);
@@ -114,14 +117,14 @@ describe('autres commandes', () => {
 describe('scroum build', () => {
   it('construit la démo et affiche le chemin du zip', async () => {
     const dir = join(tmp, 'build-demo');
-    cpSync(join(examples, 'demo'), dir, { recursive: true });
+    cpSync(join(examples, 'demo'), dir, { recursive: true, filter: noDist });
     const t = io();
     expect(await main(['build', dir], t)).toBe(0);
     expect(t.stdout.join('\n')).toMatch(/demo-.+\.scroum\.zip/);
   });
   it('code 1 et pas de zip si la validation échoue', async () => {
     const dir = join(tmp, 'build-bad');
-    cpSync(join(examples, 'demo'), dir, { recursive: true });
+    cpSync(join(examples, 'demo'), dir, { recursive: true, filter: noDist });
     writeFileSync(join(dir, 'content/scenes/port.yaml'), 'id: [casse');
     const t = io();
     expect(await main(['build', dir], t)).toBe(1);
