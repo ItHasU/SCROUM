@@ -111,7 +111,7 @@ button, input { font: inherit; color: inherit; }
   display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: var(--radius);
   background: #1d2130f2; border: 1px solid #ffffff2a; box-shadow: 0 10px 30px #000a;
 }
-.hotspot-menu.above { transform: translate(-50%, -6px); }
+
 .hm-title { font-weight: 700; padding: 2px 6px 6px; border-bottom: 1px solid #ffffff1c; margin-bottom: 2px; }
 .hm-verb, .hm-cancel { min-height: var(--tap); padding: 6px 12px; border: 0; border-radius: 8px; background: var(--panel-2); text-align: left; cursor: pointer; }
 .hm-verb:hover { background: #343a4f; }
@@ -182,6 +182,7 @@ button, input { font: inherit; color: inherit; }
   background: #1d2130; border-top-left-radius: 18px; border-top-right-radius: 18px; box-shadow: 0 -10px 30px #000a;
   padding: 8px 12px calc(64px + env(safe-area-inset-bottom));
 }
+.drawer:not(.open) { visibility: hidden; }
 .drawer.open { transform: none; }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; }
 .drawer-head h2 { margin: 0; font-size: 1.05em; }

@@ -153,15 +153,10 @@ export class StageView {
       hs.verbs.map((v) => button('hm-verb', verbLabel(v.verb, v.label), run(() => ctrl.dispatch({ type: 'verb', hotspot: hs.id, verb: v.verb })), { 'data-verb': v.verb, role: 'menuitem' })),
       button('hm-cancel', 'Annuler', () => this.closeMenu()),
     );
-    // Position : sous le hotspot (ou au-dessus s'il est en bas), bornée horizontalement.
+    // Position : centrée sur le hotspot, bornée pour rester à l'écran (le menu peut déborder sur le panneau).
     const cx = hs.rect.x + hs.rect.w / 2;
-    const below = hs.rect.y + hs.rect.h < 0.62;
-    Object.assign(this.menu.style, {
-      left: `${Math.min(Math.max(cx * 100, 18), 82)}%`,
-      top: below ? `${(hs.rect.y + hs.rect.h) * 100}%` : '',
-      bottom: below ? '' : `${(1 - hs.rect.y) * 100}%`,
-    });
-    this.menu.classList.toggle('above', !below);
+    const cy = hs.rect.y + hs.rect.h / 2;
+    Object.assign(this.menu.style, { left: `${Math.min(Math.max(cx * 100, 25), 75)}%`, top: `${Math.min(Math.max(cy * 100, 8), 45)}%`, bottom: '' });
     this.menu.hidden = false;
   }
 
