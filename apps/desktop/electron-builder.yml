@@ -1,0 +1,44 @@
+appId: fr.ithasu.scroum
+productName: SCROUM
+copyright: ItHasU
+directories:
+  output: release
+  buildResources: build
+# Seuls le main/preload/accueil vont dans l'asar ; les fronts statiques sont servis depuis resources/ (fs réel).
+files:
+  - dist/main.mjs
+  - dist/preload.cjs
+  - dist/home.html
+  - package.json
+extraResources:
+  - { from: dist/web, to: web }
+  - { from: dist/player, to: player }
+  - { from: dist/FORMAT.md, to: FORMAT.md }
+npmRebuild: false
+nodeGypRebuild: false
+artifactName: SCROUM-${version}-${os}-${arch}.${ext}
+win:
+  icon: build/icon.png
+  target:
+    - { target: nsis, arch: [x64] }
+    - { target: portable, arch: [x64] }
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: SCROUM-${version}-win-${arch}-setup.${ext}
+portable:
+  artifactName: SCROUM-${version}-win-${arch}-portable.${ext}
+linux:
+  icon: build/icon.png
+  category: Game
+  maintainer: ItHasU <noreply@github.com>
+  target:
+    - { target: AppImage, arch: [x64] }
+    - { target: deb, arch: [x64] }
+mac:
+  icon: build/icon.png
+  category: public.app-category.games
+  # Pas de signature ni de notarisation (voir README : contournement de Gatekeeper).
+  identity: null
+  target:
+    - { target: dmg, arch: [x64, arm64] }

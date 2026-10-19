@@ -5,3 +5,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # Le binaire Electron n'est pas téléchargé à l'installation (CI Pages, tests) : `pnpm --filter @scroum/desktop fetch-electron` pour le récupérer.
+  electron: false
+  electron-winstaller: false
+  "@electron/winstaller": false
