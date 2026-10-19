@@ -1,0 +1,15 @@
+.boot { color: #9aa1b2; text-align: center; padding: 2rem; }
+.home { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 0%, #2b4a6a 0%, #11131a 65%); }
+.home-box { width: 100%; max-width: 420px; text-align: center; }
+.home-logo { font-size: 56px; color: #f2b544; text-shadow: 0 0 24px #f2b54480; }
+.home h1 { margin: 8px 0; font-size: 1.9em; }
+.home-desc { color: #cfd3de; }
+.home-actions { display: flex; flex-direction: column; gap: 10px; margin: 20px 0; }
+.home-actions .btn { text-align: center; min-height: 52px; font-size: 1.05em; }
+.home-actions .btn.secondary { background: #2b4a6a; border-color: #3f6d99; }
+.home-error { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2574c; background: #3a0e0e; }
+.home-error p { margin: 4px 0 0; font-size: 0.9em; color: #f0c8c4; white-space: pre-line; }
+.home-form { display: flex; gap: 6px; }
+.home-url { flex: 1; min-width: 0; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid #3a3f52; background: #0f1118; }
+.home-foot { color: #9aa1b2; font-size: 0.8em; margin-top: 24px; }
