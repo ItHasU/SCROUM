@@ -235,3 +235,32 @@ describe('player via Vite (middlewareMode)', () => {
     }
   });
 });
+
+describe('mode production (staticDirs)', () => {
+  it('sert les fronts pré-construits sans Vite', async () => {
+    const dist = mkdtempSync(join(tmpdir(), 'scroum-static-'));
+    mkdirSync(join(dist, 'web'));
+    mkdirSync(join(dist, 'player/assets'), { recursive: true });
+    writeFileSync(join(dist, 'web/index.html'), '<title>web-prod</title>');
+    writeFileSync(join(dist, 'player/index.html'), '<title>player-prod</title>');
+    writeFileSync(join(dist, 'player/assets/a.js'), 'export {}');
+    const prod = await startEditorServer({
+      project: resolveProject(repo),
+      port: 0,
+      debounceMs: 30,
+      staticDirs: { web: join(dist, 'web'), player: join(dist, 'player') },
+    });
+    try {
+      expect(await (await fetch(prod.url + '/')).text()).toContain('web-prod');
+      expect(await (await fetch(prod.url + '/play/')).text()).toContain('player-prod');
+      const js = await fetch(prod.url + '/play/assets/a.js');
+      expect(js.headers.get('content-type')).toMatch(/javascript/);
+      expect((await fetch(prod.url + '/play/nope.js')).status).toBe(404);
+      expect((await fetch(prod.url + '/api/project')).status).toBe(200);
+      expect((await (await fetch(prod.url + '/api/project')).json()).playerAvailable).toBe(true);
+    } finally {
+      await prod.close();
+      rmSync(dist, { recursive: true, force: true });
+    }
+  });
+});

@@ -1,13 +1,21 @@
 /** Lancement de Claude Code depuis l'éditeur. */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { delimiter, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { LOCAL_FILE, type GameData } from '@scroum/schema';
 
 /** Chemin absolu de docs/FORMAT.md du dépôt scroum. */
-export const FORMAT_DOC = fileURLToPath(new URL('../../../../docs/FORMAT.md', import.meta.url));
+export const FORMAT_DOC = process.env.SCROUM_FORMAT_DOC ?? fileURLToPath(new URL('../../../../docs/FORMAT.md', import.meta.url));
+
+/** La commande `claude` est-elle lançable (chemin existant, ou présente dans le PATH) ? */
+export function claudeAvailable(command: string): boolean {
+  if (isAbsolute(command) || /[\\/]/.test(command)) return existsSync(command);
+  const exts = process.platform === 'win32' ? ['', ...(process.env.PATHEXT ?? '.EXE;.CMD').split(';')] : [''];
+  return (process.env.PATH ?? '').split(delimiter).some((d) => d && exts.some((e) => existsSync(join(d, command + e))));
+}
 
 export interface ClaudeConfig {
   command: string;

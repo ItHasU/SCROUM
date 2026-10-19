@@ -6,6 +6,7 @@ export interface ProjectInfo {
   root: string;
   git: boolean;
   playerAvailable: boolean;
+  claude?: { command: string; available: boolean };
 }
 export interface FileEntry {
   path: string;

@@ -11,7 +11,7 @@ import { buildProject, type ResolvedProject } from '@scroum/build';
 import { IMAGE_EXTENSIONS, classifyPath, imageMime, loadContent, normalizePath } from '@scroum/schema';
 import { validateContent } from '@scroum/validate';
 import { readContentDir } from '@scroum/validate/node';
-import { buildSystemPrompt, resolveClaudeConfig, spawnClaude, validatedElements, type Selection } from './claude';
+import { buildSystemPrompt, claudeAvailable, resolveClaudeConfig, spawnClaude, validatedElements, type Selection } from './claude';
 import { changedFiles, diffFile, isGitRepo, revertFiles, snapshot } from './git';
 import { HttpError, relPosix, safeJoin } from './paths';
 
@@ -30,6 +30,11 @@ export interface EditorServerOptions {
   webDir?: string;
   /** Dossier de l'app player (Vite en middlewareMode si index.html existe). */
   playerDir?: string;
+  /**
+   * Mode production : sert les fronts **pré-construits** (`vite build`) au lieu des middlewares Vite
+   * (`web` à la racine, `player` sous `/play/`). Vite n'est alors jamais chargé.
+   */
+  staticDirs?: { web: string; player: string };
   /** Délai de regroupement des événements SSE (ms). */
   debounceMs?: number;
 }
@@ -112,7 +117,8 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const host = options.host ?? '127.0.0.1';
   const webDir = options.webDir ?? null;
   const webRoot = join(here, '../../web');
-  const playerDir = options.playerDir ?? join(here, '../../../player');
+  const staticDirs = options.staticDirs ?? null;
+  const playerDir = staticDirs?.player ?? options.playerDir ?? join(here, '../../../player');
   const claudeCfg = await resolveClaudeConfig(root, options.claudeCommand);
   await mkdir(contentDir, { recursive: true });
 
@@ -167,6 +173,7 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
         notes: project.notes,
         git: await isGitRepo(root),
         playerAvailable,
+        claude: { command: claudeCfg.command, available: claudeAvailable(claudeCfg.command) },
       });
     }
 
@@ -372,6 +379,10 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
           res.writeHead(302, { location: `/play/${url.search}` });
           return void res.end();
         }
+        if (url.pathname.startsWith('/play/') && staticDirs && playerAvailable) {
+          if (await serveStatic(res, staticDirs.player, decodeURIComponent(url.pathname.slice('/play/'.length)))) return;
+          throw new HttpError(404, 'introuvable');
+        }
         if (url.pathname.startsWith('/play/')) {
           if (!playerAvailable) {
             res.writeHead(503, { 'content-type': 'text/html; charset=utf-8' });
@@ -390,9 +401,9 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
             res.writeHead(404).end();
           });
         }
-        if (webDir) {
+        if (webDir ?? staticDirs?.web) {
           const rel = decodeURIComponent(url.pathname.slice(1));
-          if (await serveStatic(res, webDir, rel)) return;
+          if (await serveStatic(res, (webDir ?? staticDirs?.web)!, rel)) return;
           throw new HttpError(404, 'introuvable');
         }
         // Front de l'éditeur : Vite en middlewareMode. Son client HMR (injecté malgré `hmr: false`) vise le port 24678 par
