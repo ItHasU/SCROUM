@@ -15,3 +15,16 @@ pnpm scroum edit examples/demo        # éditeur local : http://127.0.0.1:5317 (
 ```
 
 Le playtest est servi par l'éditeur sous `/play/?source=/api`. `pnpm scroum --help` liste les commandes.
+
+## Jouer
+
+- **Depuis l'éditeur** (source directe, rechargement à chaud) : `pnpm scroum edit examples/demo`, puis ouvrir
+  http://127.0.0.1:5317/play/?source=/api (`&scene=<id>` pour démarrer dans une scène).
+- **Player seul** : `pnpm --filter @scroum/player dev` (ou `build` → `apps/player/dist`, statique, base relative), puis
+  ouvrir la page avec `?game=<url d'un .scroum.zip>` (serveur avec CORS ouvert, ex. GitHub Pages) ou choisir un fichier
+  local `.scroum.zip` depuis l'écran d'accueil (`pnpm scroum build examples/demo` en produit un).
+- Commandes : tap sur un élément → menu de verbes ; 🎒 Inventaire : tap = examiner, appui long / « En main » = sélectionner
+  (puis tap sur un élément = utiliser, sur un autre objet = combiner, en dialogue = Donner / Montrer) ; ☰ : sauvegardes
+  (3 emplacements + auto, export/import JSON), quêtes, galerie, réglages (surlignage des zones, Assistant IA).
+- E2E : `pnpm --filter @scroum/player e2e` (Chromium via `pnpm exec playwright install chromium` ; dans le container,
+  les bibliothèques système manquantes sont extraites dans `~/.cache/pw-libs` → `LD_LIBRARY_PATH=$HOME/.cache/pw-libs/root/usr/lib/x86_64-linux-gnu`).

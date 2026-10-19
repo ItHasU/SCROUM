@@ -30,8 +30,8 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/build` | Résolution d'un dépôt de jeu (`resolveProject`) et `buildProject` (validation → images sharp/webp → zip) | M2 ✔ |
 | `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit` ✔ ; `gen-image` (message « non implémenté », M5) | M2 ✔ |
 | `@scroum/engine` | Machine à états pure : `start`/`step`/`listActions`, vues, `KeywordBackend`, harnais de scénarios | M1 ✔ (logique) |
-| `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | squelette (M1) |
-| `@scroum/player` (`apps/player`) | Page statique GitHub Pages | squelette (M1) |
+| `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | M1 ✔ |
+| `@scroum/player` (`apps/player`) | Page statique GitHub Pages | M1 ✔ |
 | `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
 | `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
 
@@ -209,3 +209,20 @@ scène (état initial du jeu, `state.scene = <id>`, `on_enter` exécuté) au lie
 
 Le player doit ignorer silencieusement tout message inconnu. Le rechargement de contenu (SSE `/events`) ne
 déclenche aucun message : le player conserve son état et renvoie un `state` s'il l'a modifié.
+
+## Player (M1)
+
+- `@scroum/ui` : `GameController` (sans DOM : état moteur, dispatch, journal dérivé des `EngineEvent`, sessions de
+  dialogue, objet sélectionné, dialogue terminé affiché jusqu'à « Suite », texte libre → classifieur → action `intent`,
+  reformulation optionnelle bornée avec repli) ; vues DOM vanilla dans `src/dom/` (`createPlayer(root, game, opts)`) ;
+  styles `@scroum/ui/style.css` (base mobile-first + skins `plain`, `chat_retro`, `rpg_bubbles`, `swipe_cards`, classe
+  `.skin-<nom>` sur `.scroum`) ; sauvegardes `localStorage` (`scroum:save:<titre>:auto|1..3`, try/catch partout) ;
+  `RemoteBackend` (OpenAI-compatible, JSON mode, délai, repli mots-clés) et `WllamaBackend` (import dynamique, GGUF
+  Qwen2.5-0.5B téléchargé seulement après consentement, grammaire GBNF), choisis par `AssistantManager` selon le réglage
+  « Assistant IA » : `off` (choix seulement ; champ libre conservé s'il n'y a aucun choix), `keyword` (défaut), `remote`, `local`.
+- `apps/player` : `PlayerApp` (accueil, `?game=`, fichier local, `?source=` + SSE, `?scene=`), protocole playtest
+  (`src/playtest.ts`), PWA (`public/manifest.webmanifest`, `public/sw.js` enregistré en production hors iframe/source).
+- **Skins propres au jeu** : le format v1 ne transporte pas `content/skins/*.css` (ignorés par `loadContent`, absents
+  de `game.json`). Le player les cherche quand même : `GET /api/files/skins/<nom>.css` en source directe, entrées
+  `skins/<nom>.css` du zip sinon (le build ne les y met pas encore : à ajouter au build, sans changer `formatVersion`).
+  Le CSS cible `.scroum.skin-<nom>`.
