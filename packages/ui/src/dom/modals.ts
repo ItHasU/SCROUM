@@ -4,6 +4,7 @@ import { formatBytes } from '../backends/util';
 import type { AssistantMode } from '../storage';
 import { makeSave, parseSave, type SlotId } from '../storage';
 import { assetImage, type ViewContext } from './context';
+import { verbLabel } from '../labels';
 import { append, button, h, replace } from './h';
 
 export class ModalView {
@@ -230,6 +231,18 @@ export class ModalView {
         h('div', null, h('h3', null, it.name, (ctrl.state.inventory[id] ?? 0) > 1 ? ` ×${ctrl.state.inventory[id]}` : ''), it.description ? h('p', null, it.description) : null),
       ),
       lines.length ? h('div.item-lines', null, lines.map((l) => h('p.msg', null, l.name ? h('span.who', null, l.name) : null, h('span.txt', null, l.text)))) : null,
+      owned && !ctrl.state.ending && Object.keys(it.actions ?? {}).length > 0
+        ? h(
+            'div.row.item-verbs',
+            null,
+            Object.entries(it.actions).map(([verb, a]) =>
+              button('btn', verbLabel(verb, a.label), () => {
+                this.ctx.openModal(null);
+                ctrl.dispatch({ type: 'item_verb', item: id, verb });
+              }, { 'data-item-verb': verb }),
+            ),
+          )
+        : null,
       owned && !ctrl.state.ending
         ? h(
             'div.row',
