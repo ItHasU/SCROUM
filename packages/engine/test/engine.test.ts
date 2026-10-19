@@ -287,6 +287,12 @@ describe('dialogues', () => {
     expect(types(end.events)).toEqual(['dialogue_ended', 'scene_entered', 'say']);
   });
 
+  it('saut de dialogue : le changement de scène en attente est conservé', () => {
+    const s = run(menu(), { type: 'choose', choice: 4 }, { type: 'choose', choice: 3 });
+    expect(s.state.dialogue).toEqual({ id: 'd2', node: 'n', pending_scene: 'c' });
+    expect(step(game, s.state, { type: 'choose', choice: 0 }).state.scene).toBe('c');
+  });
+
   it('end_game dans un dialogue → dialogue fermé, partie finie', () => {
     const r = step(game, menu(), { type: 'choose', choice: 6 });
     expect(r.state.dialogue).toBeNull();
