@@ -22,7 +22,10 @@ export interface EditorServerOptions {
   host?: string;
   /** Commande `claude` (sinon $SCROUM_CLAUDE_BIN, scroum.local.yaml, `claude`). */
   claudeCommand?: string;
-  /** Dossier du front de l'éditeur. */
+  /**
+   * Dossier d'un front statique (tests). Par défaut le front de l'éditeur
+   * (`apps/editor/web`, TypeScript) est servi par Vite en middlewareMode, sans HMR.
+   */
   webDir?: string;
   /** Dossier de l'app player (Vite en middlewareMode si index.html existe). */
   playerDir?: string;
@@ -106,7 +109,8 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const contentDir = project.contentDir;
   const root = project.root;
   const host = options.host ?? '127.0.0.1';
-  const webDir = options.webDir ?? join(here, '../../web/public');
+  const webDir = options.webDir ?? null;
+  const webRoot = join(here, '../../web');
   const playerDir = options.playerDir ?? join(here, '../../../player');
   const claudeCfg = await resolveClaudeConfig(root, options.claudeCommand);
   await mkdir(contentDir, { recursive: true });
@@ -138,6 +142,7 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
 
   // ---- Vite (player) -----------------------------------------------------
   let vite: import('vite').ViteDevServer | null = null;
+  let webVite: import('vite').ViteDevServer | null = null;
   const playerAvailable = existsSync(join(playerDir, 'index.html'));
 
   // ---- Claude : une exécution à la fois ----------------------------------
@@ -384,10 +389,22 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
             res.writeHead(404).end();
           });
         }
-        const rel = decodeURIComponent(url.pathname.slice(1));
-        if (await serveStatic(res, webDir, rel)) return;
-        if (url.pathname === '/') return sendJson(res, 200, { name: 'SCROUM editor', web: 'front non disponible', api: '/api/project' });
-        throw new HttpError(404, 'introuvable');
+        if (webDir) {
+          const rel = decodeURIComponent(url.pathname.slice(1));
+          if (await serveStatic(res, webDir, rel)) return;
+          throw new HttpError(404, 'introuvable');
+        }
+        // Front de l'éditeur : Vite en middlewareMode (pas de HMR, pour ne pas entrer en conflit avec celui du player).
+        webVite ??= await (await import('vite')).createServer({
+          root: webRoot,
+          appType: 'spa',
+          logLevel: 'warn',
+          server: { middlewareMode: true, hmr: false, watch: null },
+          optimizeDeps: { include: ['cytoscape', 'cytoscape-elk', 'elkjs/lib/elk.bundled.js', 'yaml'] },
+        });
+        return void webVite.middlewares(req, res, () => {
+          res.writeHead(404).end();
+        });
       } catch (e) {
         if (res.headersSent) return void res.end();
         if (e instanceof HttpError) return sendJson(res, e.status, { ok: false, error: e.message, ...e.extra });
@@ -417,6 +434,7 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
       for (const c of clients) c.end();
       await watcher.close();
       await vite?.close();
+      await webVite?.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },

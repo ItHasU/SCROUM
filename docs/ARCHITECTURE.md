@@ -33,7 +33,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | squelette (M1) |
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | squelette (M1) |
 | `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
-| `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur | squelette (M3) |
+| `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
 
 Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
 `cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépendra de `engine` pour l'analyse de jouabilité.
@@ -160,9 +160,52 @@ sont refusés (403). Corps JSON pour les écritures. Routes :
 | `GET /api/diff?file=` | `{ file, diff }` (diff git ; fichier non suivi : diff contre /dev/null) |
 | `POST /api/gen-image` | 501 « génération d'images non implémentée (M5) » |
 | `/play/…` | player : Vite `middlewareMode` sur `apps/player` (base `/play/`) si `apps/player/index.html` existe, sinon page 503 « Player non disponible » ; ouvrir `/play/?source=/api` |
-| `/` | front statique `apps/editor/web/public/` (page minimale en attendant M3) |
+| `/` | front de l'éditeur (`apps/editor/web`, TS vanilla) servi par Vite en `middlewareMode` (sans HMR ; pas d'étape de build) ; l'option `webDir` sert un dossier statique à la place (tests) |
 
 Claude Code : `claude -p "<demande>" --output-format stream-json --verbose --append-system-prompt "<…>" --permission-mode acceptEdits`,
 `cwd` = racine du dépôt de jeu. Le prompt système contient le chemin absolu de `docs/FORMAT.md`, `content/bible/tone.md`,
 les éléments `status: validated` et l'élément sélectionné. Commande configurable : option `claudeCommand`, sinon `$SCROUM_CLAUDE_BIN`,
 sinon `claude.command` de `scroum.local.yaml` (`claude.permission_mode` pour le mode de permission, vide = aucun), sinon `claude`.
+
+## Front de l'éditeur (M3)
+
+`apps/editor/web` : TypeScript strict sans framework. `src/model/` contient la logique pure testée (graphe, table des
+objets, résumé de la bible, changement de statut dans le YAML, champs de formulaire, protocole playtest, flux Claude) ;
+`src/ui/` les vues (Bible, Graphe, Objets, Fichiers, Playtest, Claude), l'inspecteur et le rapport de validation ;
+`src/store.ts` l'état global (rechargement de `/api/game.json` + `/api/validate` à chaque événement SSE `change`).
+Le test `src/app.test.ts` lance `scroum edit` sur une copie de `examples/demo` et pilote le front dans jsdom.
+
+## Protocole playtest
+
+L'éditeur (`/`) embarque le player dans une iframe `/play/?source=/api[&scene=<id>]` et dialogue avec lui par
+`postMessage`. Les deux côtés **n'acceptent que les messages de même origine** (`event.origin === location.origin`)
+et, côté éditeur, dont `event.source` est l'iframe. Tout message est un objet avec une clé `scroum` (type). Le côté
+éditeur est implémenté dans `apps/editor/web/src/model/protocol.ts` (types + validation) et `ui/playtest.ts`.
+
+**Paramètres d'URL du player** (en plus de `source`) : `scene=<id>` démarre une nouvelle partie directement dans cette
+scène (état initial du jeu, `state.scene = <id>`, `on_enter` exécuté) au lieu de `meta.start_scene`. Ignoré si la scène n'existe pas.
+
+**player → éditeur** (`window.parent.postMessage(msg, location.origin)`, seulement si `window.parent !== window`) :
+
+| Message | Quand |
+|---|---|
+| `{ scroum: 'ready', version: 1 }` | une fois le jeu chargé et la première partie démarrée |
+| `{ scroum: 'state', state, lastEvents, intent? }` | **après chaque action** du joueur (et après le démarrage, un `set_state` ou un `restart`) |
+
+- `state` : le `GameState` du moteur tel quel (JSON). L'éditeur lit `scene`, `flags` (liste), `vars`, `counters`,
+  `inventory` (objet → quantité), `dialogue` (`{ id, node, … }` ou `null`), `ending`, `quests` ; il renvoie l'objet
+  entier (champs inconnus compris) dans `set_state`.
+- `lastEvents` : les `EngineEvent` produits par la dernière action (`StepResult.events`), pour le journal de debug.
+- `intent` (optionnel, uniquement après une saisie de texte libre) :
+  `{ text?: string, intent: Id | null, confidence: number, threshold?: number, accepted?: boolean }` — résultat du classifieur
+  (`intent: null` si aucune intention) et si le moteur l'a retenue (seuil atteint).
+
+**éditeur → player** (`iframe.contentWindow.postMessage(msg, location.origin)`) :
+
+| Message | Effet attendu |
+|---|---|
+| `{ scroum: 'set_state', state }` | le player **remplace l'état du moteur** par `state` (sans relancer la partie ni vider le journal), réaffiche la scène/le dialogue courant, puis renvoie un message `state`. Sert à éditer inventaire, drapeaux, etc. depuis le panneau de debug. |
+| `{ scroum: 'restart', scene? }` | nouvelle partie (`createInitialState`), dans `scene` si fournie, sinon la scène de départ ; puis renvoie un message `state`. |
+
+Le player doit ignorer silencieusement tout message inconnu. Le rechargement de contenu (SSE `/events`) ne
+déclenche aucun message : le player conserve son état et renvoie un `state` s'il l'a modifié.

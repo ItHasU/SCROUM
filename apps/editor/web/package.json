@@ -11,5 +11,18 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p ."
   },
-  "dependencies": {"@scroum/schema": "workspace:*"}
+  "dependencies": {
+    "@scroum/schema": "workspace:*",
+    "cytoscape": "^3.34.4",
+    "cytoscape-elk": "^2.3.0",
+    "elkjs": "^0.12.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@scroum/build": "workspace:*",
+    "@scroum/editor-server": "workspace:*",
+    "@scroum/validate": "workspace:*",
+    "@types/cytoscape": "^3.31.0",
+    "jsdom": "^30.1.3"
+  }
 }
