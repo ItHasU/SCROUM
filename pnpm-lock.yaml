@@ -336,6 +336,9 @@ importers:
       '@scroum/editor-server':
         specifier: workspace:*
         version: link:../../apps/editor/server
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema

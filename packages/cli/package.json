@@ -14,6 +14,7 @@
   "dependencies": {
     "@scroum/build": "workspace:*",
     "@scroum/editor-server": "workspace:*",
+    "@scroum/images": "workspace:*",
     "@scroum/schema": "workspace:*",
     "@scroum/validate": "workspace:*",
     "tsx": "^4.23.15",

@@ -4,7 +4,7 @@
  *   scroum validate [chemin] [--json] [--quiet] [--no-playability] [--path-out f.json] [--max-states N] [--max-depth N] [--time-limit S]
  *   scroum build [chemin]
  *   scroum edit [chemin] [--port N] [--host H] [--no-open]
- *   scroum gen-image …   (jalon M5, non implémentée)
+ *   scroum gen-image --asset <id> [--n 4] [--prompt "…"]
  *
  * `main` est testable : entrées/sorties injectées, renvoie le code de retour.
  */
@@ -14,13 +14,13 @@ import { FORMAT_VERSION } from '@scroum/schema';
 import { buildProject } from '@scroum/build';
 import { exportPaths, type PlayabilityOptions } from '@scroum/validate';
 import { validateDir } from '@scroum/validate/node';
+import { genImageCommand } from './gen-image';
 import { ProjectError, resolveProject, type ResolvedProject } from './project';
 import { formatReport, makeStyle } from './report';
 
 export { resolveProject, ProjectError, type ResolvedProject } from './project';
 export { formatReport } from './report';
 
-export const GEN_IMAGE_MESSAGE = 'génération d\'images non implémentée (M5)';
 
 export interface Io {
   out(s: string): void;
@@ -58,14 +58,17 @@ Usage :
   scroum edit [chemin] [--port N] [--host H]
       Lance l'éditeur local (http://127.0.0.1:5317 par défaut ; port : --port,
       puis editor.port de scroum.project.yaml). Le player est servi sous /play/.
-  scroum gen-image --asset <id> [--n 4] [--prompt "…"]   (jalon M5, non implémenté)
+  scroum gen-image --asset <id> [--n 4] [--prompt "…"] [--workflow w] [--seed N] [--variant-of N] [--no-server] [chemin]
+      Dépose N candidats dans content/assets/_candidates/<id>/ (jamais validés : le statut
+      reste à l'humain). Passe par l'éditeur s'il tourne (--url, sinon editor.port), sinon
+      génère directement via ComfyUI (comfyui.url de scroum.local.yaml).
   scroum --help | --version
 
 Code de retour : 0 si tout va bien, 1 si erreurs de contenu, 2 si usage incorrect.`;
 
 
 /** Options à valeur (`--port 5000` ou `--port=5000`) ; les autres `--x` sont des drapeaux. */
-const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt', 'path-out', 'max-states', 'max-depth', 'time-limit']);
+const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt', 'workflow', 'seed', 'variant-of', 'url', 'path-out', 'max-states', 'max-depth', 'time-limit']);
 
 function parseArgs(argv: string[]): { positional: string[]; flags: Set<string>; values: Map<string, string> } {
   const positional: string[] = [];
@@ -147,7 +150,7 @@ async function editCommand(args: string[], flags: Set<string>, values: Map<strin
   return 0;
 }
 
-const VALIDATE_FLAGS = ['json', 'quiet', 'no-playability', 'path-out', 'max-states', 'max-depth', 'time-limit'];
+const VALIDATE_FLAGS = ['json', 'quiet', 'no-playability', 'workflow', 'seed', 'variant-of', 'url', 'path-out', 'max-states', 'max-depth', 'time-limit'];
 
 /** Options de jouabilité de la ligne de commande ; null si une valeur est invalide (message déjà affiché). */
 function playabilityOptions(flags: Set<string>, values: Map<string, string>, io: Io): PlayabilityOptions | false | null {
@@ -245,8 +248,14 @@ export async function main(argv: string[], io: Io = defaultIo()): Promise<number
     case 'edit':
       return editCommand(args, flags, values, io);
     case 'gen-image':
-      io.err(GEN_IMAGE_MESSAGE);
-      return 1;
+    {
+      if (args.length > 1) {
+        io.err(`argument inattendu : ${args.slice(1).join(' ')}`);
+        return 2;
+      }
+      const project = projectOrReport(args[0], io, 'gen-image');
+      return project ? genImageCommand(project, flags, values, io) : 1;
+    }
     default:
       io.err(`commande inconnue : ${command}\n\n${HELP}`);
       return 2;
