@@ -55,8 +55,13 @@ export function createImagesView(): View {
   );
   detail.append(head, h('div', { class: 'row', style: 'align-items:flex-start' }, currentBox), form, h('section', { class: 'card' }, h('h3', null, 'Candidats'), grid), compareBox);
 
+  /** Les réponses arrivant dans le désordre (SSE + actions) ne doivent pas écraser une vue plus récente. */
+  let seq = 0;
   async function refreshAssets(): Promise<void> {
-    assets = await imagesApi.assets();
+    const mine = ++seq;
+    const fresh = await imagesApi.assets();
+    if (mine !== seq) return;
+    assets = fresh;
     if (current && !assets.some((a) => a.id === current)) current = null;
     renderList();
     if (current) await refreshCandidates();
@@ -64,7 +69,10 @@ export function createImagesView(): View {
   }
 
   async function refreshCandidates(): Promise<void> {
-    cands = current ? await imagesApi.candidates(current) : [];
+    const mine = seq;
+    const fresh = current ? await imagesApi.candidates(current) : [];
+    if (mine !== seq) return;
+    cands = fresh;
     renderDetail();
   }
 
