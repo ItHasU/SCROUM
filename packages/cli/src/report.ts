@@ -35,6 +35,16 @@ export function formatReport(report: ValidationReport, opts: { style: Style; qui
     }
   }
   for (const s of report.skipped) lines.push(st.dim(`(non exécuté : ${s.analyzer} — ${s.reason})`));
+  const pl = report.playability;
+  if (pl) {
+    const t = `${(pl.stats.durationMs / 1000).toFixed(1)} s`;
+    const head = `Jouabilité : ${plural(pl.stats.states, 'état')} explorés en ${t}, profondeur ${pl.stats.depth}`;
+    if (!pl.complete) lines.push(st.yellow(`${head} — exploration INCOMPLÈTE (${pl.stopReason ?? 'borne atteinte'}) : absence de fin, de soft-lock ou d'élément atteint non concluante`));
+    else lines.push(st.dim(`${head} — exploration complète`));
+    lines.push(pl.winReachable ? st.green(`  fin win atteignable : ${pl.winPath?.id ?? '?'}${pl.winPath ? ` (${pl.winPath.path.steps.length} actions)` : ''}`) : st.dim('  fin win non atteinte'));
+    const n = pl.softlocks.length;
+    lines.push(n ? st.red(`  ${plural(n, 'soft-lock')} (voir ci-dessus)`) : st.dim('  aucun soft-lock'));
+  }
   const summary = `${plural(report.errors.length, 'erreur')}, ${plural(report.warnings.length, 'avertissement')}`;
   lines.push(report.ok ? st.green(`✔ Contenu valide (${summary})`) : st.red(`✖ Contenu invalide (${summary})`));
   return lines.join('\n');

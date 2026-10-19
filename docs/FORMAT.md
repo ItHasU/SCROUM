@@ -825,7 +825,8 @@ Toute référence à un asset (`background`, `avatar`, `portrait`, `icon`, `imag
 ## 14. Validation (`scroum validate`)
 
 ```
-pnpm scroum validate [chemin] [--json] [--quiet]
+pnpm scroum validate [chemin] [--json] [--quiet] [--no-playability] [--path-out f.json]
+                     [--max-states N] [--max-depth N] [--time-limit S]
 ```
 
 `[chemin]` : racine du dépôt de jeu (avec `scroum.project.yaml`), ou dossier `content/`.
@@ -848,9 +849,24 @@ Niveaux, dans l'ordre (un niveau en erreur peut empêcher les suivants) :
    Avertissements : `missing_image`, `orphan_scene`, `orphan_dialogue`, `orphan_node`,
    `flag_never_set`, `unused_intent`, `unknown_skin`, `inert_hotspot`,
    `duplicate_combine`, `consume_other`, `no_win_ending`, `unknown_file`.
-4. **Jouabilité** (à venir, jalon M1b) : exploration de l'espace d'états depuis
-   `start_scene` ; fin `win` atteignable, éléments jamais atteints, *soft-locks*
-   (avec le chemin qui y mène).
+4. **Jouabilité** (`@scroum/validate`, `playability.ts`), exécutée seulement si les
+   niveaux précédents sont sans erreur. Exploration en largeur des états du moteur
+   (`step`) depuis `start_scene`, avec abstraction des valeurs monotones jamais lues.
+   - fin `win` atteignable (`win_unreachable` sinon, en erreur) ;
+   - éléments jamais atteints, en avertissement : `unreached_ending`, scènes,
+     dialogues, nœuds, actions, objets, quêtes, collections ;
+   - *soft-locks* (`softlock`, en erreur) : états d'où plus aucune fin `win` n'est
+     atteignable, regroupés par cause (consommable requis deux fois mais obtenable
+     une fois, don irréversible, objet obtenable trop tard) avec le plus court chemin
+     lisible (`take cle → use cle on porte1`). Les fins `game_over` sont des
+     terminaux voulus, jamais des soft-locks.
+   - bornes (défauts : 100 000 états, profondeur 1000, 30 s) : au-delà,
+     `exploration_incomplete` — l'absence de fin ou d'élément atteint ne conclut
+     alors pas ; un soft-lock déjà prouvé reste certain.
+   Un résumé (états, durée, win, soft-locks) précède le verdict. `--path-out` écrit
+   les chemins rejouables (fin win, fins, soft-locks : actions moteur, formes
+   courtes, scénarios `runScenario`) ; `--no-playability` désactive ce niveau ;
+   `--json` ajoute la clé `playability`.
 
 ---
 
