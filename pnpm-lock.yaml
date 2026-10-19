@@ -303,6 +303,9 @@ importers:
 
   packages/build:
     dependencies:
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema

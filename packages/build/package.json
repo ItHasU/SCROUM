@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
+    "@scroum/images": "workspace:*",
     "@scroum/schema": "workspace:*",
     "@scroum/validate": "workspace:*",
     "fflate": "^0.8.3",
