@@ -1,6 +1,6 @@
 import { request } from 'node:http';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -209,6 +209,25 @@ describe('Claude Code (faux binaire)', () => {
       expect(done.error).toMatch(/impossible de lancer/);
     } finally {
       await other.close();
+    }
+  });
+});
+
+describe('player via Vite (middlewareMode)', () => {
+  it('sert apps/player sous /play/ quand index.html existe', async () => {
+    const playerDir = join(tmp, 'player');
+    mkdirSync(playerDir);
+    writeFileSync(join(playerDir, 'index.html'), '<!doctype html><title>P</title><script type="module" src="/main.js"></script>');
+    writeFileSync(join(playerDir, 'main.js'), 'console.log("player")');
+    const s = await startEditorServer({ project: resolveProject(repo), port: 0, playerDir });
+    try {
+      const html = await (await fetch(s.url + '/play/?source=/api')).text();
+      expect(html).toMatch(/@vite\/client/);
+      const js = await fetch(s.url + '/play/main.js');
+      expect(js.status).toBe(200);
+      expect((await fetch(s.url + '/api/game.json')).status).toBe(200);
+    } finally {
+      await s.close();
     }
   });
 });
