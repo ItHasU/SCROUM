@@ -29,9 +29,13 @@ export function createClaudeView(): View {
   prompt.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') void send();
   });
-  const el = h('div', { class: 'view claude' }, h('h2', null, 'Claude'), ctx, prompt, h('div', { class: 'row' }, sendBtn, stopBtn), stream, result);
+  const missing = h('div', { class: 'ctx', hidden: true });
+  const el = h('div', { class: 'view claude' }, h('h2', null, 'Claude'), missing, ctx, prompt, h('div', { class: 'row' }, sendBtn, stopBtn), stream, result);
 
   function drawCtx(): void {
+    const c = state.project?.claude;
+    missing.hidden = !c || c.available;
+    if (c && !c.available) render(missing, h('strong', null, `Claude Code (« ${c.command} ») est introuvable sur cette machine. `), 'Installez la CLI `claude` (https://claude.com/claude-code) puis relancez l’éditeur, ou indiquez son chemin dans scroum.local.yaml (claude.command).');
     const sel = state.selection;
     const game = state.game;
     if (!sel && !state.file) {

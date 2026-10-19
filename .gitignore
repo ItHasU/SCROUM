@@ -6,3 +6,4 @@ coverage/
 scroum.local.yaml
 test-results/
 playwright-report/
+release/

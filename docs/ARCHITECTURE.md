@@ -34,6 +34,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | M1 ✔ |
 | `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
 | `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
+| `@scroum/desktop` (`apps/desktop`) | Application de bureau Electron (accueil, éditeur, player) | ✔ |
 
 Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
 `cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépend aussi de `engine` (analyse de jouabilité).
@@ -166,6 +167,36 @@ Claude Code : `claude -p "<demande>" --output-format stream-json --verbose --app
 `cwd` = racine du dépôt de jeu. Le prompt système contient le chemin absolu de `docs/FORMAT.md`, `content/bible/tone.md`,
 les éléments `status: validated` et l'élément sélectionné. Commande configurable : option `claudeCommand`, sinon `$SCROUM_CLAUDE_BIN`,
 sinon `claude.command` de `scroum.local.yaml` (`claude.permission_mode` pour le mode de permission, vide = aucun), sinon `claude`.
+
+### Mode production (`staticDirs`)
+
+`startEditorServer({ staticDirs: { web, player } })` sert les fronts **pré-construits** (`vite build` de `apps/editor/web` à la
+racine, de `apps/player` sous `/play/`) au lieu des middlewares Vite, qui ne sont alors jamais chargés. Défaut inchangé
+(`scroum edit` : Vite en middlewareMode). `/api/project` expose `claude: { command, available }` : le panneau Claude
+affiche un avertissement si la CLI `claude` est introuvable. `$SCROUM_FORMAT_DOC` remplace le chemin de `docs/FORMAT.md`
+cité dans le prompt système (le fichier est livré à côté de l'application).
+
+## Application de bureau (`apps/desktop`)
+
+Electron + TypeScript, aucun module natif. Le code n'est **pas** exécuté via tsx : `scripts/bundle.mjs` produit `dist/` :
+`main.mjs` (esbuild, ESM : processus principal + `@scroum/editor-server` + `@scroum/build` embarqués ; `vite`, `sharp`,
+`fsevents` restent externes — `sharp` est optionnel, `buildProject` retombe sur la copie brute des images avec un
+avertissement), `preload.cjs`, `home.html`, `web/` et `player/` (`vite build`) et `FORMAT.md`.
+
+- **Accueil** : « Ouvrir un dépôt de jeu… » (`resolveProject` puis serveur de l'éditeur **dans le même processus**, port libre
+  sur 127.0.0.1, `staticDirs`, une fenêtre par dépôt, serveur arrêté à la fermeture), « Jouer un fichier .scroum.zip… »
+  (mini-serveur local `player-server.ts` : player statique + zip sous `/game.zip`), projets récents (`recent.json` dans
+  `userData`). Menu Fichier / Édition / Affichage / Aide.
+- Fenêtres : `contextIsolation`, `sandbox`, pas de Node côté pages ; seul l'accueil a un preload (IPC `open-repo`, `open-zip`, `recent`…).
+- Le PATH est complété (`~/.local/bin`, `/opt/homebrew/bin`…) pour retrouver `claude` quand l'application est lancée hors d'un shell.
+- Empaquetage `electron-builder` (`electron-builder.yml`) : tout est bundlé, donc **aucune dépendance d'exécution** (toutes en
+  `devDependencies`) ; l'asar ne contient que main/preload/accueil, les fronts sont copiés dans `resources/` (fs réel).
+  Cibles : Windows NSIS + portable, Linux AppImage + deb, macOS dmg (x64 + arm64, **non signé**).
+- `pnpm-workspace.yaml` : `allowBuilds: electron: false` — `pnpm install` (CI Pages, tests) ne télécharge pas le binaire Electron ;
+  `pnpm --filter @scroum/desktop fetch-electron` le récupère pour `start`/`smoke` ; `electron-builder` télécharge le sien.
+- CI : `.github/workflows/desktop.yml` (matrice windows/ubuntu/macos → artefacts → job `release` : `desktop-latest` sur push `main`,
+  release versionnée sur tag `v*`).
+- Test de fumée : `apps/desktop/scripts/smoke.mjs` (Playwright `_electron`, ouvre `examples/demo`), hors `pnpm test`.
 
 ## Front de l'éditeur (M3)
 

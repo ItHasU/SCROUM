@@ -32,3 +32,27 @@ Le playtest est servi par l'éditeur sous `/play/?source=/api`. `pnpm scroum --h
   (3 emplacements + auto, export/import JSON), quêtes, galerie, réglages (surlignage des zones, Assistant IA).
 - E2E : `pnpm --filter @scroum/player e2e` (Chromium via `pnpm exec playwright install chromium` ; dans le container,
   les bibliothèques système manquantes sont extraites dans `~/.cache/pw-libs` → `LD_LIBRARY_PATH=$HOME/.cache/pw-libs/root/usr/lib/x86_64-linux-gnu`).
+
+## Application de bureau
+
+Application Electron autonome (éditeur + player, sans Node ni pnpm côté utilisateur) : accueil avec « Ouvrir un dépôt de jeu… »,
+« Jouer un fichier .scroum.zip… » et projets récents. Paquets prêts à l'emploi : release GitHub
+[`desktop-latest`](https://github.com/ItHasU/SCROUM/releases/tag/desktop-latest) (build de `main`) ou release versionnée (tag `v*`).
+
+- Windows : installeur NSIS (`-setup.exe`) ou version portable (`-portable.exe`).
+- Linux : AppImage (`chmod +x`, puis l'exécuter) ou `.deb`.
+- macOS : `.dmg`, **non signé** : à la première ouverture, clic droit sur l'app > Ouvrir > Ouvrir ; ou, si macOS la dit « endommagée »,
+  `xattr -dr com.apple.quarantine /Applications/SCROUM.app`.
+- Le panneau Claude nécessite la CLI [`claude`](https://claude.com/claude-code) installée sur la machine (message dans le panneau sinon).
+  Les images sont copiées sans conversion (pas de `sharp` dans l'app).
+
+Développement (`export PATH=$HOME/.local/bin:$PATH` dans le container) :
+
+```sh
+pnpm install
+pnpm --filter @scroum/desktop fetch-electron   # télécharge le binaire Electron (non fait par pnpm install)
+pnpm --filter @scroum/desktop start            # bundle (esbuild + vite build) puis lance l'app
+pnpm --filter @scroum/desktop dist             # paquets de l'OS courant -> apps/desktop/release/
+pnpm --filter @scroum/desktop dist -- --linux AppImage   # (ou --dir pour un dossier non empaqueté)
+pnpm --filter @scroum/desktop smoke            # test de fumée (xvfb-run -a ... ; SMOKE_HEADLESS=1 sans écran)
+```

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>SCROUM</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 15px system-ui, sans-serif; background: #15171c; color: #e6e6ea; display: flex; justify-content: center; }
+  main { width: 100%; max-width: 640px; padding: 40px 24px; }
+  h1 { margin: 0 0 4px; font-size: 32px; letter-spacing: .08em; }
+  .sub { color: #9aa0ad; margin: 0 0 28px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; }
+  button { font: inherit; padding: 12px 18px; border-radius: 8px; border: 1px solid #3a3f4b; background: #232733; color: inherit; cursor: pointer; }
+  button:hover { background: #2d3342; }
+  button.primary { background: #c8872e; border-color: #c8872e; color: #1a1205; font-weight: 600; }
+  button.primary:hover { background: #dc9a3c; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #9aa0ad; display: flex; justify-content: space-between; }
+  h2 a { color: #9aa0ad; font-size: 12px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; gap: 10px; align-items: baseline; }
+  li:hover { background: #232733; }
+  li small { color: #9aa0ad; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; flex: 1; text-align: left; }
+  .msg { color: #e5737a; min-height: 1.4em; }
+  .empty { color: #9aa0ad; }
+</style>
+</head>
+<body>
+<main>
+  <h1>SCROUM</h1>
+  <p class="sub">Aventures point-and-click à dialogues semi-scriptés.</p>
+  <div class="actions">
+    <button class="primary" id="repo">Ouvrir un dépôt de jeu…</button>
+    <button id="zip">Jouer un fichier .scroum.zip…</button>
+  </div>
+  <p class="msg" id="msg"></p>
+  <h2>Projets récents <a id="clear">Effacer</a></h2>
+  <ul id="recent"></ul>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const show = (r) => { $('msg').textContent = r && r.error ? r.error : ''; refresh(); };
+  async function refresh() {
+    const list = await window.scroum.recent();
+    const ul = $('recent');
+    ul.replaceChildren();
+    if (!list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Aucun projet récent.'; li.style.cursor = 'default'; ul.append(li); return; }
+    for (const e of list) {
+      const li = document.createElement('li');
+      const name = document.createElement('span');
+      name.textContent = (e.kind === 'zip' ? '▶ ' : '✎ ') + e.name;
+      const p = document.createElement('small');
+      p.textContent = e.path;
+      li.append(name, p);
+      li.onclick = async () => show(await (e.kind === 'zip' ? window.scroum.openZip(e.path) : window.scroum.openRepo(e.path)));
+      ul.append(li);
+    }
+  }
+  $('repo').onclick = async () => show(await window.scroum.openRepo());
+  $('zip').onclick = async () => show(await window.scroum.openZip());
+  $('clear').onclick = async () => { await window.scroum.clearRecent(); refresh(); };
+  refresh();
+</script>
+</body>
+</html>

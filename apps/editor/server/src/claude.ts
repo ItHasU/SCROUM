@@ -1,13 +1,24 @@
 /** Lancement de Claude Code depuis l'éditeur. */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { delimiter, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { LOCAL_FILE, type GameData } from '@scroum/schema';
 
 /** Chemin absolu de docs/FORMAT.md du dépôt scroum. */
-export const FORMAT_DOC = fileURLToPath(new URL('../../../../docs/FORMAT.md', import.meta.url));
+const FORMAT_DOC_DEFAULT = fileURLToPath(new URL('../../../../docs/FORMAT.md', import.meta.url));
+/** Évalué à l'usage : l'application de bureau fournit le sien via $SCROUM_FORMAT_DOC. */
+export const formatDoc = (): string => process.env.SCROUM_FORMAT_DOC ?? FORMAT_DOC_DEFAULT;
+export const FORMAT_DOC = FORMAT_DOC_DEFAULT;
+
+/** La commande `claude` est-elle lançable (chemin existant, ou présente dans le PATH) ? */
+export function claudeAvailable(command: string): boolean {
+  if (isAbsolute(command) || /[\\/]/.test(command)) return existsSync(command);
+  const exts = process.platform === 'win32' ? ['', ...(process.env.PATHEXT ?? '.EXE;.CMD').split(';')] : [''];
+  return (process.env.PATH ?? '').split(delimiter).some((d) => d && exts.some((e) => existsSync(join(d, command + e))));
+}
 
 export interface ClaudeConfig {
   command: string;
@@ -59,7 +70,7 @@ export function buildSystemPrompt(opts: { tone: string | null; validated: string
     : "Aucun élément n'est sélectionné dans l'éditeur.";
   return [
     "Tu édites le contenu d'un jeu SCROUM (moteur d'aventure point-and-click) depuis l'éditeur SCROUM.",
-    `Le format des fichiers est décrit dans ${FORMAT_DOC} : lis-le avant toute modification.`,
+    `Le format des fichiers est décrit dans ${formatDoc()} : lis-le avant toute modification.`,
     `Le contenu du jeu est dans ${opts.contentDir} ; modifie uniquement des fichiers du dépôt courant. Lance « pnpm scroum validate » après tes modifications.`,
     "Ne passe jamais un élément à « status: validated » toi-même : seul l'humain valide. Ne modifie pas les éléments validés sans demande explicite.",
     `Éléments validés (intouchables par défaut) : ${opts.validated.length ? opts.validated.join(', ') : 'aucun'}.`,

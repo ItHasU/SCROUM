@@ -1,0 +1,32 @@
+{
+  "name": "@scroum/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Application de bureau SCROUM (Electron) : éditeur et player autonomes",
+  "author": "ItHasU",
+  "homepage": "https://github.com/ItHasU/SCROUM",
+  "main": "dist/main.mjs",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "bundle": "node scripts/bundle.mjs",
+    "start": "pnpm bundle && electron .",
+    "dist": "pnpm bundle && electron-builder",
+    "dist:dir": "pnpm bundle && electron-builder --dir",
+    "fetch-electron": "node node_modules/electron/install.js",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@scroum/build": "workspace:*",
+    "@scroum/editor-server": "workspace:*",
+    "@scroum/editor-web": "workspace:*",
+    "@scroum/player": "workspace:*",
+    "@scroum/schema": "workspace:*",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "vite": "^8.3.4"
+  },
+  "desktopName": "scroum.desktop"
+}
