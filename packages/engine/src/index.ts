@@ -1,7 +1,12 @@
 /**
  * @scroum/engine — machine à états pure du jeu (sans DOM).
  *
- * À implémenter (jalon M1) : `createInitialState(game)`, `step(game, state, action)`,
- * `listActions(game, state)`, `KeywordBackend`. Voir docs/ARCHITECTURE.md.
+ * - `createInitialState`, `start`, `step` : exécution (docs/FORMAT.md) ;
+ * - `listActions` : actions jouables (UI, tests, analyse de jouabilité) ;
+ * - helpers de vue (`view`) ; `KeywordBackend` (classifieur de texte libre par défaut) ;
+ * - `runScenario` : harnais de scénarios de test.
  */
-export {};
+export * from './types';
+export * from './state';
+export * from './conditions';
+export * from './queries';
