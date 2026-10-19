@@ -152,3 +152,15 @@ describe("point d'extension", () => {
     expect(broken.skipped.map((s) => s.analyzer)).toEqual(['fake-bfs']);
   });
 });
+
+describe('dialogues à next conditionnel', () => {
+  it('un nœud atteint seulement par next conditionnel n’est pas orphelin', () => {
+    const f = mutate({
+      'dialogues/gardien.yaml': (s) => s.replace('- { label: "Partir" }', '- { label: "Partir" }\n      - { label: "Routeur", next: routeur_test }') + '\n  routeur_test:\n    next:\n      - { if: { flag: x }, next: cible_test }\n      - { next: cible_test }\n  cible_test:\n    lines: ["Ok."]\n',
+    });
+    const r = validateContent(f);
+    const orphan = r.warnings.filter((w) => w.code === 'orphan_node' && /cible_test/.test(w.path));
+    expect(orphan).toEqual([]);
+    expect(r.warnings.some((w) => w.code === 'orphan_node' && /routeur_test/.test(w.path))).toBe(false);
+  });
+});

@@ -283,7 +283,7 @@ function exercisedSite(state: GameState, a: Action): string | null {
 /** Fichier et chemin du contenu où l'action jouée dans `state` est écrite. */
 export function locateAction(game: GameData, state: GameState, a: Action): { file: string; location: string } {
   const scene = game.scenes[state.scene];
-  if (state.dialogue && !['look_item', 'combine'].includes(a.type)) {
+  if (state.dialogue && !['look_item', 'item_verb', 'combine'].includes(a.type)) {
     const d = game.dialogues[state.dialogue.id];
     const n = d?.nodes[state.dialogue.node];
     const base = `nodes.${state.dialogue.node}`;
@@ -317,6 +317,8 @@ export function locateAction(game: GameData, state: GameState, a: Action): { fil
       return { file: scene?.source ?? '', location: `exits[${scene?.exits.findIndex((e) => e.id === a.exit) ?? -1}]` };
     case 'look_item':
       return { file: game.items[a.item]?.source ?? 'items.yaml', location: `${a.item}.look` };
+    case 'item_verb':
+      return { file: game.items[a.item]?.source ?? 'items.yaml', location: `${a.item}.actions.${a.verb}` };
     case 'combine':
       return { file: game.items[a.item]?.source ?? 'items.yaml', location: `${a.item}.combine` };
     default:
