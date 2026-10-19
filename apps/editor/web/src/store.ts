@@ -49,8 +49,8 @@ export function setView(v: ViewName): void {
 export function requestPlay(scene: string | null): void {
   state.playScene = scene;
   state.view = 'playtest';
-  emit('view');
   emit('play');
+  emit('view');
 }
 
 export async function reload(changed: string[] = []): Promise<void> {

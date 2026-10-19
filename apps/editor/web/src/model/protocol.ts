@@ -75,7 +75,5 @@ export function parsePlayerMessage(data: unknown): PlayerMessage | null {
 
 /** URL du player en mode source directe, éventuellement positionné sur une scène. */
 export function playUrl(scene?: string | null): string {
-  const q = new URLSearchParams({ source: '/api' });
-  if (scene) q.set('scene', scene);
-  return `/play/?${q.toString()}`;
+  return `/play/?source=/api${scene ? `&scene=${encodeURIComponent(scene)}` : ''}`;
 }

@@ -142,7 +142,7 @@ describe('protocole playtest', () => {
     expect(parsePlayerMessage('x')).toBeNull();
     expect(parsePlayerMessage({ scroum: 'state' })).toBeNull();
   });
-  it('construit l’URL', () => expect(playUrl('port')).toBe('/play/?source=%2Fapi&scene=port'));
+  it('construit l’URL', () => expect(playUrl('port')).toBe('/play/?source=/api&scene=port'));
 });
 
 describe('flux Claude', () => {

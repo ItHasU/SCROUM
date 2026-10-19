@@ -33,7 +33,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | squelette (M1) |
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | squelette (M1) |
 | `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
-| `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur | squelette (M3) |
+| `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
 
 Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
 `cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépendra de `engine` pour l'analyse de jouabilité.
@@ -156,6 +156,14 @@ Claude Code : `claude -p "<demande>" --output-format stream-json --verbose --app
 `cwd` = racine du dépôt de jeu. Le prompt système contient le chemin absolu de `docs/FORMAT.md`, `content/bible/tone.md`,
 les éléments `status: validated` et l'élément sélectionné. Commande configurable : option `claudeCommand`, sinon `$SCROUM_CLAUDE_BIN`,
 sinon `claude.command` de `scroum.local.yaml` (`claude.permission_mode` pour le mode de permission, vide = aucun), sinon `claude`.
+
+## Front de l'éditeur (M3)
+
+`apps/editor/web` : TypeScript strict sans framework. `src/model/` contient la logique pure testée (graphe, table des
+objets, résumé de la bible, changement de statut dans le YAML, champs de formulaire, protocole playtest, flux Claude) ;
+`src/ui/` les vues (Bible, Graphe, Objets, Fichiers, Playtest, Claude), l'inspecteur et le rapport de validation ;
+`src/store.ts` l'état global (rechargement de `/api/game.json` + `/api/validate` à chaque événement SSE `change`).
+Le test `src/app.test.ts` lance `scroum edit` sur une copie de `examples/demo` et pilote le front dans jsdom.
 
 ## Protocole playtest
 
