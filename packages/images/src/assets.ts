@@ -57,6 +57,9 @@ export interface GenHooks {
   signal?: AbortSignal;
 }
 
+/** Workflows génériques à image de référence / sans. Un workflow propre au jeu est supposé adapté. */
+const EDIT_WORKFLOWS = new Set(['char_edit', 'transform', 'remove_bg']);
+const TEXT_WORKFLOWS = new Set(['bg', 'char_sheet', 'item_icon']);
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 const DEFAULT_SIZE: Record<AssetKind, [number, number]> = {
   background: [1280, 720],
@@ -171,7 +174,12 @@ export async function generateForAsset(ctx: ImagesContext, req: GenRequest, hook
   const refs = [...(req.references ?? (Array.isArray(asset.references) ? (asset.references as string[]) : []))];
   if (req.variantOf !== undefined) refs.unshift(`candidate:${req.variantOf}`);
   const refPaths = await Promise.all(refs.map((r) => resolveRef(ctx, id, r)));
-  const workflow = req.workflow ?? (typeof asset.workflow === 'string' && asset.workflow && !(refs.length === 0 && asset.workflow === 'char_edit') ? asset.workflow : refs.length > 0 ? 'char_edit' : DEFAULT_WORKFLOW[kind]);
+  const declared = typeof asset.workflow === 'string' && asset.workflow ? asset.workflow : null;
+  const workflow =
+    req.workflow ??
+    (refs.length > 0
+      ? declared && (EDIT_WORKFLOWS.has(declared) || !TEXT_WORKFLOWS.has(declared)) ? declared : 'char_edit'
+      : declared && !EDIT_WORKFLOWS.has(declared) ? declared : DEFAULT_WORKFLOW[kind]);
   const editing = refPaths.length > 0;
 
   const loaded = await readContentDir(ctx.contentDir).then((f) => loadContent(f).game ?? null).catch(() => null);
@@ -233,7 +241,7 @@ async function patchAsset(contentDir: string, id: string, patch: Record<string, 
     if (v === null || v === undefined || (Array.isArray(v) && v.length === 0 && !doc.hasIn([id, k]))) continue;
     doc.setIn([id, k], v);
   }
-  await writeFile(file, String(doc), 'utf8');
+  await writeFile(file, doc.toString({ lineWidth: 0 }), 'utf8');
 }
 
 /**

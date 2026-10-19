@@ -217,6 +217,9 @@ importers:
       '@scroum/build':
         specifier: workspace:*
         version: link:../../../packages/build
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../../../packages/images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../../../packages/schema

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@scroum/build": "workspace:*",
+    "@scroum/images": "workspace:*",
     "@scroum/schema": "workspace:*",
     "@scroum/validate": "workspace:*",
     "chokidar": "^5.0.0",
