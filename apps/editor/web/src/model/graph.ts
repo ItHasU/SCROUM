@@ -177,6 +177,10 @@ export function buildGraph(game: GameData, opts: GraphOptions = {}): GraphModel 
       const to = (id: Id | null): string | null => (id && d.nodes[id] ? dnodeId(d.id, id) : null);
       const t0 = to(n.next);
       if (t0) addEdge(from, t0, 'next', '');
+      for (const b of n.next_if) {
+        const tb = to(b.next);
+        if (tb) addEdge(from, tb, 'next', 'si');
+      }
       for (const c of n.choices) {
         const t = to(c.next);
         if (t) addEdge(from, t, 'choice', short(c.label, 28));

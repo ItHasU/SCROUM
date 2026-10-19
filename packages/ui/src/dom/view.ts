@@ -151,10 +151,16 @@ export class PlayerView implements ViewContext {
 
   /** Charge le CSS d'un skin propre au jeu (`content/skins/<nom>.css`) une seule fois. */
   private ensureSkin(skin: string): void {
-    if ((BUILTIN_SKINS as readonly string[]).includes(skin) || this.loadedSkins.has(skin) || !this.assets.skinCss) return;
+    if ((BUILTIN_SKINS as readonly string[]).includes(skin) || this.loadedSkins.has(skin)) return;
+    const own = this.ctrl.game.skins?.[skin];
+    if (!own && !this.assets.skinCss) return;
     this.loadedSkins.add(skin);
+    if (own) {
+      document.head.append(h('style', { 'data-scroum-skin': skin }, own));
+      return;
+    }
     this.assets
-      .skinCss(skin)
+      .skinCss!(skin)
       .then((css) => {
         if (!css) return console.warn(`[scroum] skin « ${skin} » introuvable : rendu « plain »`);
         document.head.append(h('style', { 'data-scroum-skin': skin }, css));

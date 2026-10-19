@@ -81,6 +81,16 @@ export function clampCounter(game: GameData, counter: Id, value: number): number
   return v;
 }
 
+/** Borne une valeur de variable selon `vars` de `game.yaml` (variable non déclarée : inchangée). */
+export function clampVar(game: GameData, v: Id, value: number): number {
+  const d = game.vars?.[v];
+  if (!d) return value;
+  let x = value;
+  if (d.min !== null && x < d.min) x = d.min;
+  if (d.max !== null && x > d.max) x = d.max;
+  return x;
+}
+
 /** Quantité maximale possédable d'un objet (1 si non `stackable`). */
 export function maxQty(game: GameData, item: Id): number {
   return game.items[item]?.stackable === false ? 1 : Infinity;
@@ -108,7 +118,10 @@ export function createInitialState(game: GameData): GameState {
     revealed: [],
     collections: [],
   };
-  for (const [k, v] of Object.entries(init.vars)) if (v !== 0) state.vars[k] = v;
+  for (const [k, raw] of Object.entries(init.vars)) {
+    const v = clampVar(game, k, raw);
+    if (v !== 0) state.vars[k] = v;
+  }
   for (const c of Object.values(game.counters)) state.counters[c.id] = clampCounter(game, c.id, c.initial);
   for (const [item, qty] of Object.entries(init.inventory)) {
     const q = Math.min(qty, maxQty(game, item));

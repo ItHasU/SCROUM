@@ -14,6 +14,7 @@ import {
   ID_PATTERN,
   createNormCtx,
   normalizeCondition,
+  normalizeItemActions,
   normalizeItemReactions,
   normalizeOptionalCondition,
   normalizeScript,
@@ -43,11 +44,14 @@ import type {
   Item,
   ItemReactions,
   Line,
+  NextBranch,
   Quest,
   Rect,
   Scene,
   Script,
   Transition,
+  VarDef,
+  VerbAction,
   World,
 } from './types';
 
@@ -149,11 +153,25 @@ const EndingSchema = z
   .strictObject({
     type: z.enum(['win', 'game_over']),
     title: optText,
-    text: optText,
+    text: z
+      .union([z.string(), z.array(z.union([z.string().transform((text) => ({ if: null as Condition | null, text })), z.strictObject({ if: optCondition, text: z.string() })]))])
+      .nullish()
+      .transform((v, ctx): { text: string | null; text_if: { condition: Condition; text: string }[] } => {
+        if (v === null || v === undefined) return { text: null, text_if: [] };
+        if (typeof v === 'string') return { text: v, text_if: [] };
+        const text_if: { condition: Condition; text: string }[] = [];
+        let text: string | null = null;
+        v.forEach((e, i) => {
+          if (e.if) text_if.push({ condition: e.if, text: e.text });
+          else if (i === v.length - 1) text = e.text;
+          else ctx.addIssue({ code: 'custom', message: 'seule la dernière variante peut être sans « if » (texte par défaut)', path: [i] });
+        });
+        return { text, text_if };
+      }),
     image: optId,
     notes,
   })
-  .transform((e): Omit<Ending, 'id'> => ({ type: e.type, title: e.title, text: e.text, image: e.image }));
+  .transform((e): Omit<Ending, 'id'> => ({ type: e.type, title: e.title, text: e.text.text, text_if: e.text.text_if, image: e.image }));
 
 const CollectionSchema = z
   .strictObject({
@@ -168,6 +186,13 @@ const CollectionSchema = z
   .transform(
     (c): Collection => ({ id: c.id, title: c.title, text: c.text, character: c.character, images: c.images, condition: c.if }),
   );
+
+const VarSchema = z
+  .strictObject({ min: z.number().nullish(), max: z.number().nullish(), notes })
+  .superRefine((v, ctx) => {
+    if (v.min != null && v.max != null && v.min > v.max) ctx.addIssue({ code: 'custom', message: '« min » doit être ≤ « max »', path: ['min'] });
+  })
+  .transform((v): Omit<VarDef, 'id'> => ({ min: v.min ?? null, max: v.max ?? null }));
 
 const InitialSchema = z
   .strictObject({
@@ -193,6 +218,10 @@ export const GameFileSchema = z
     player_character: optId,
     refuse_line: z.string().default(DEFAULT_REFUSE_LINE),
     counters: z.record(IdSchema, CounterSchema).default({}),
+    vars: z.record(IdSchema, VarSchema).default({}),
+    dialogue: z
+      .strictObject({ echo_choices: z.boolean().default(false) })
+      .default({ echo_choices: false }),
     character_roles: idList,
     validation: z
       .strictObject({
@@ -231,6 +260,7 @@ export function gameMetaFromFile(g: GameFile): GameMeta {
     character_roles: g.character_roles,
     validation: g.validation,
     initial: g.initial,
+    dialogue: g.dialogue,
   };
 }
 
@@ -465,9 +495,31 @@ export const SceneFileSchema = z
 // ---------------------------------------------------------------------------
 
 const LineSchema = z.union([
-  z.string().transform((text) => ({ speaker: null as string | null, text })),
-  z.strictObject({ speaker: IdSchema, text: z.string() }),
+  z.string().transform((text) => ({ speaker: null as string | null, text, if: null as Condition | null })),
+  z.strictObject({ speaker: optId, text: z.string(), if: optCondition }),
 ]);
+
+const BranchSchema = z.union([
+  IdSchema.transform((next) => ({ if: null as Condition | null, next: next as string | null })),
+  z.strictObject({ if: optCondition, next: optId }),
+]);
+
+/** `next` : id de nœud, `null`, ou liste de branches `{ if, next }` (dernière sans `if` = repli). */
+const NextSchema = z
+  .union([z.null(), IdSchema, z.array(BranchSchema).min(1)])
+  .optional()
+  .transform((v, ctx): { next: string | null; next_if: NextBranch[] } => {
+    if (v === undefined || v === null) return { next: null, next_if: [] };
+    if (typeof v === 'string') return { next: v, next_if: [] };
+    const next_if: NextBranch[] = [];
+    let next: string | null = null;
+    v.forEach((b, i) => {
+      if (b.if) next_if.push({ condition: b.if, next: b.next });
+      else if (i === v.length - 1) next = b.next;
+      else ctx.addIssue({ code: 'custom', message: 'seule la dernière branche peut être sans « if » (repli)', path: [i] });
+    });
+    return { next, next_if };
+  });
 
 const ChoiceSchema = z
   .strictObject({
@@ -512,13 +564,13 @@ const NodeSchema = z
     effects: ScriptSchema,
     choices: z.array(ChoiceSchema).default([]),
     free_text: FreeTextSchema.optional(),
-    next: optId,
+    next: NextSchema,
     on_give: ReactionsSchema,
     on_show: ReactionsSchema,
     notes,
   })
   .superRefine((n, ctx) => {
-    if (n.next && (n.choices.length > 0 || n.free_text)) {
+    if ((n.next.next || n.next.next_if.length > 0) && (n.choices.length > 0 || n.free_text)) {
       ctx.addIssue({ code: 'custom', message: '« next » est exclusif avec « choices » et « free_text »', path: ['next'] });
     }
   });
@@ -551,11 +603,12 @@ export const DialogueFileSchema = z
         : null;
       nodes[id] = {
         id,
-        lines: n.lines.map((l): Line => ({ speaker: l.speaker ?? defaultSpeaker, text: l.text })),
+        lines: n.lines.map((l): Line => ({ speaker: l.speaker ?? defaultSpeaker, text: l.text, condition: l.if })),
         effects: n.effects,
         choices: n.choices,
         free_text,
-        next: n.next,
+        next: n.next.next,
+        next_if: n.next.next_if,
         on_give: n.on_give,
         on_show: n.on_show,
       };
@@ -600,6 +653,7 @@ export const ItemSchema = z
     consumable: z.boolean().default(false),
     stackable: z.boolean().default(false),
     look: ScriptSchema,
+    actions: normalized<Record<string, VerbAction>>(normalizeItemActions),
     combine: z.array(CombinationSchema).default([]),
     notes,
   })
@@ -613,6 +667,7 @@ export const ItemSchema = z
       consumable: i.consumable,
       stackable: i.stackable,
       look: i.look,
+      actions: i.actions,
       combine: i.combine.map((c) => ({ with: c.with, result: c.result, consume: c.consume, effects: c.effects })),
     }),
   );

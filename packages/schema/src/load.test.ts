@@ -175,14 +175,14 @@ describe('loadContent', () => {
     const d = loadContent(base()).game!.dialogues.chat!;
     const n1 = d.nodes.n1!;
     expect(n1.lines).toEqual([
-      { speaker: 'chat', text: 'Miaou...' },
-      { speaker: 'heros', text: 'Salut le chat.' },
+      { speaker: 'chat', text: 'Miaou...', condition: null },
+      { speaker: 'heros', text: 'Salut le chat.', condition: null },
     ]);
     expect(n1.choices[1]!.condition).toEqual({ kind: 'has_item', item: 'poisson' });
     expect(n1.free_text!.intents.caresse).toEqual({ next: 'n2', effects: [] });
     expect(n1.free_text!.fallback).toEqual({ next: 'n1', effects: [] });
     expect(n1.on_give!.default).toEqual({ next: 'n1', effects: [] });
-    expect(d.nodes.n2!.lines).toEqual([{ speaker: 'chat', text: 'Ronron.' }]);
+    expect(d.nodes.n2!.lines).toEqual([{ speaker: 'chat', text: 'Ronron.', condition: null }]);
     expect(d.nodes.n2!.next).toBeNull();
   });
 

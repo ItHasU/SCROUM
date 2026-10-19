@@ -96,3 +96,31 @@ describe('vues DOM', () => {
     expect(root.querySelector('.ending')?.getAttribute('data-type')).toBe('game_over');
   });
 });
+
+describe('évolutions du format dans l’UI', () => {
+  const mini = (): GameData => {
+    const { game: g } = loadContent({
+      'game.yaml': 'title: T\nversion: 0.1.0\nformatVersion: 1\nstart_scene: a\ninitial: { inventory: [flacon] }\ncollections:\n  - { id: c1, title: Mur, if: { has_item: flacon } }\nendings:\n  fin: { type: game_over, text: Glou }\n',
+      'bible/worlds.yaml': 'w: { name: W, ui_skin: neon }\n',
+      'skins/neon.css': '.skin-neon { color: lime; }',
+      'items.yaml': 'flacon:\n  name: Flacon\n  actions:\n    boire: { label: "Boire", end_game: fin }\n',
+      'scenes/a.yaml': 'world: w\n',
+    });
+    return g!;
+  };
+
+  it('verbe d’objet dans la fiche, skin du jeu injecté, galerie accessible', () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const { controller } = createPlayer(root, mini(), { store: memStore() });
+    controller.newGame();
+    expect(document.head.querySelector('style[data-scroum-skin=neon]')?.textContent).toContain('lime');
+    (root.querySelector('[data-hud=gallery]') as HTMLElement).click();
+    expect(root.querySelector('[data-collection=c1]')).not.toBeNull();
+    (root.querySelector('.modal .close') as HTMLElement).click();
+    (root.querySelector('[data-hud=inventory]') as HTMLElement).click();
+    (root.querySelector('.drawer [data-item=flacon]') as HTMLElement).click();
+    (root.querySelector('[data-item-verb=boire]') as HTMLElement).click();
+    expect(controller.state.ending?.id).toBe('fin');
+  });
+});

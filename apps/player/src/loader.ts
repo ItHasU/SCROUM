@@ -48,7 +48,7 @@ export function loadZipBytes(bytes: Uint8Array): LoadedGame {
     const file = zip.manifest.images.find((i) => i.id === id)?.file ?? `${id}.webp`;
     urls.set(id, URL.createObjectURL(new Blob([data as BlobPart], { type: imageMime(file) })));
   }
-  // Le format v1 ne transporte pas encore les skins : on lit `skins/*.css` s'ils existent (voir docs/ARCHITECTURE.md).
+  // Les skins du jeu sont dans `game.skins` (GameData) ; on garde la lecture de `skins/*.css` à la racine du zip en repli.
   let skins: Record<string, Uint8Array> = {};
   try {
     skins = unzipSync(bytes, { filter: (f) => /^(content\/)?skins\/[^/]+\.css$/.test(f.name) });

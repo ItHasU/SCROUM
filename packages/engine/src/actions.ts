@@ -27,7 +27,8 @@ export interface ListActionsOptions {
  *   puis `give`/`show` de chaque objet possédé, puis `leave` si permis ;
  * - hors dialogue : `verb` (hotspots visibles × verbes, ordre du fichier),
  *   `use` (objets possédés × hotspots visibles ayant `use`), `exit` (sorties visibles) ;
- * - toujours (partie non finie) : `look_item` de chaque objet possédé, puis
+ * - toujours (partie non finie) : `look_item` de chaque objet possédé (suivi de ses
+ *   `item_verb`), puis
  *   `combine` des paires d'objets possédés ayant une combinaison (un objet avec
  *   lui-même s'il est possédé en deux exemplaires).
  *
@@ -67,7 +68,10 @@ export function listActions(game: GameData, state: GameState, options: ListActio
     for (const e of visibleExitList(game, state)) out.push({ type: 'exit', exit: e.id });
   }
 
-  for (const item of items) out.push({ type: 'look_item', item });
+  for (const item of items) {
+    out.push({ type: 'look_item', item });
+    for (const verb of Object.keys(game.items[item]?.actions ?? {})) out.push({ type: 'item_verb', item, verb });
+  }
   out.push(...combineActions(game, state, items, !!options.exhaustive));
   return out;
 }
@@ -106,6 +110,8 @@ export function describeAction(a: Action): string {
       return `combine ${a.item} ${a.with}`;
     case 'look_item':
       return `inspect ${a.item}`;
+    case 'item_verb':
+      return `act ${a.item} ${a.verb}`;
     case 'leave':
       return 'leave';
   }

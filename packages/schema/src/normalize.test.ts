@@ -174,7 +174,7 @@ describe('normalizeScript', () => {
   it('end_game en ligne remonte la fin', () => {
     const r = script({ end_game: { ending: 'chute', type: 'game_over', text: 'Plouf.' } });
     expect(ok(r)).toEqual([{ kind: 'end_game', ending: 'chute' }]);
-    expect(r.ctx.inlineEndings.map((e) => e.ending)).toEqual([{ id: 'chute', type: 'game_over', title: null, text: 'Plouf.', image: null }]);
+    expect(r.ctx.inlineEndings.map((e) => e.ending)).toEqual([{ id: 'chute', type: 'game_over', title: null, text: 'Plouf.', text_if: [], image: null }]);
   });
 
   it('refuse les étapes ambiguës ou inconnues', () => {

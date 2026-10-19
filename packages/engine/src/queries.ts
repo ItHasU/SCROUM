@@ -99,8 +99,18 @@ export function visibleChoices(node: DialogueNode, state: GameState): ChoiceView
  */
 export function nodeMode(node: DialogueNode, state: GameState): DialogueMode | 'pass' | 'end' {
   if (node.free_text || visibleChoices(node, state).length > 0) return 'input';
-  if (node.next !== null) return node.lines.length > 0 || node.on_give || node.on_show ? 'continue' : 'pass';
+  if (resolveNext(node, state) !== null) return visibleLineCount(node, state) > 0 || node.on_give || node.on_show ? 'continue' : 'pass';
   return 'end';
+}
+
+/** Nœud suivant automatique : première branche `next_if` vraie, sinon `next` (null = fin). */
+export function resolveNext(node: DialogueNode, state: GameState): Id | null {
+  for (const b of node.next_if) if (evalCondition(b.condition, state)) return b.next;
+  return node.next;
+}
+
+function visibleLineCount(node: DialogueNode, state: GameState): number {
+  return node.lines.filter((l) => evalOptional(l.condition, state)).length;
 }
 
 /** Mode du nœud courant si le dialogue attend le joueur, sinon null. */
@@ -119,7 +129,7 @@ export function canLeave(game: GameData, state: GameState): boolean {
 
 /** Répliques d'un nœud, locuteurs résolus avec l'état donné. */
 export function resolveLines(game: GameData, state: GameState, node: DialogueNode): ResolvedLine[] {
-  return node.lines.map((l) => ({ ...resolveSpeaker(game, state, l.speaker), text: l.text }));
+  return node.lines.filter((l) => evalOptional(l.condition, state)).map((l) => ({ ...resolveSpeaker(game, state, l.speaker), text: l.text }));
 }
 
 /**

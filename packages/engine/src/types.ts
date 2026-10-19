@@ -37,6 +37,8 @@ export type Action =
   | { type: 'combine'; item: Id; with: Id }
   /** Examiner un objet de l'inventaire. */
   | { type: 'look_item'; item: Id }
+  /** Verbe personnalisé d'un objet de l'inventaire (`items.yaml → actions`). */
+  | { type: 'item_verb'; item: Id; verb: string }
   /** Quitter le dialogue (seulement si autorisé : nœud à texte libre sans choix visible). */
   | { type: 'leave' };
 

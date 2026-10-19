@@ -21,6 +21,7 @@
  * `<verbe> <hotspot>` · `use <objet> on <hotspot>` · `exit <sortie>` ·
  * `choose <index>` · `choose "<libellé>"` · `continue` · `leave` ·
  * `give <objet>` · `show <objet>` · `combine <objet> <objet>` · `inspect <objet>` ·
+ * `act <objet> <verbe>` ·
  * `intent <id|-> [objet] [confiance]`.
  */
 import type { EndingType, GameData, Id } from '@scroum/schema';
@@ -153,6 +154,9 @@ export function parseAction(game: GameData, state: GameState, input: string): Ac
     case 'combine':
       need(3);
       return { type: 'combine', item: a!, with: b! };
+    case 'act':
+      need(3);
+      return { type: 'item_verb', item: a!, verb: b! };
     case 'inspect':
       need(2);
       return { type: 'look_item', item: a! };
@@ -220,7 +224,17 @@ export function checkExpectation(game: GameData, state: GameState, events: Engin
     const keys = acts.map(describeAction);
     const key = (a: string | Action) => (typeof a === 'string' ? describeAction(parseAction(game, state, a)) : describeAction(a));
     for (const a of exp.actions.include ?? []) if (!keys.includes(key(a))) out.push(`action absente : ${key(a)}`);
-    for (const a of exp.actions.exclude ?? []) if (keys.includes(key(a))) out.push(`action présente : ${key(a)}`);
+    for (const a of exp.actions.exclude ?? []) {
+      let k: string;
+      try {
+        k = key(a);
+      } catch (err) {
+        // `choose "<libellé>"` d'un choix non visible : l'action est bien absente.
+        if (typeof a === 'string' && /^choose\s+"/.test(a.trim())) continue;
+        throw err;
+      }
+      if (keys.includes(k)) out.push(`action présente : ${k}`);
+    }
     if (exp.actions.none && acts.length) out.push(`aucune action attendue, obtenu : ${keys.join(', ')}`);
   }
   return out;

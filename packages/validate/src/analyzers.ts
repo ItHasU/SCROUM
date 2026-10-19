@@ -207,6 +207,7 @@ export const referencesAnalyzer: Analyzer = {
         const np = `nodes.${n.id}`;
         n.lines.forEach((l, i) => ref('speaker', l.speaker, d.source, `${np}.lines[${i}]`));
         node(n.next, `${np}.next`);
+        n.next_if.forEach((b, i) => node(b.next, `${np}.next[${i}]`));
         n.choices.forEach((c, i) => {
           node(c.next, `${np}.choices[${i}].next`);
           ref('intent', c.intent, d.source, `${np}.choices[${i}].intent`);
@@ -387,6 +388,7 @@ export const orphansAnalyzer: Analyzer = {
         seen.add(id);
         const nexts = [
           n.next,
+          ...n.next_if.map((b) => b.next),
           ...n.choices.map((c) => c.next),
           ...Object.values(n.free_text?.intents ?? {}).map((t) => t.next),
           n.free_text?.fallback.next ?? null,

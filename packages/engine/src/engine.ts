@@ -22,11 +22,12 @@ import {
   nodeMode,
   playerSpeaker,
   refuseLine,
+  resolveNext,
   resolveLines,
   resolveSpeaker,
   visibleChoices,
 } from './queries';
-import { clampCounter, cloneState, createInitialState, maxQty, sortedAdd, sortedRemove, type GameState } from './state';
+import { clampCounter, clampVar, cloneState, createInitialState, maxQty, sortedAdd, sortedRemove, type GameState } from './state';
 import { DEFAULT_THRESHOLD, type Action, type EngineEvent, type EngineOptions, type ErrorCode, type RefuseReason, type StepResult } from './types';
 
 /** Fin de partie : interrompt toute l'exécution en cours. */
@@ -147,6 +148,7 @@ class Runtime {
 
   private setVar(v: Id, value: number): void {
     const previous = this.state.vars[v] ?? 0;
+    value = clampVar(this.game, v, value);
     if (value === 0) delete this.state.vars[v];
     else this.state.vars[v] = value;
     if (value !== previous) this.emit({ type: 'var_changed', var: v, value, previous });
@@ -201,7 +203,8 @@ class Runtime {
       this.state.dialogue = null;
     }
     this.state.ending = { id, type: e.type };
-    this.emit({ type: 'game_ended', ending: id, ending_type: e.type, title: e.title, text: e.text, image: e.image });
+    const text = e.text_if?.find((t) => evalCondition(t.condition, this.state))?.text ?? e.text;
+    this.emit({ type: 'game_ended', ending: id, ending_type: e.type, title: e.title, text, image: e.image });
     throw new EndSignal();
   }
 
@@ -292,7 +295,7 @@ class Runtime {
       }
       const mode = nodeMode(node, this.state);
       if (mode === 'pass') {
-        nodeId = node.next!;
+        nodeId = resolveNext(node, this.state)!;
         continue;
       }
       if (mode === 'end') {
@@ -426,13 +429,14 @@ class Runtime {
         const choice = Number.isInteger(a.choice) ? node.choices[a.choice] : undefined;
         if (currentMode(game, this.state) !== 'input' || !choice || !visibleChoices(node, this.state).some((c) => c.index === a.choice))
           throw new Abort('bad_choice', `choix ${String(a.choice)} indisponible`);
+        this.echoChoice(choice.label);
         this.transition(choice);
         return;
       }
       case 'continue': {
         const node = this.dialogueNode();
         if (currentMode(game, this.state) !== 'continue') throw new Abort('cannot_continue', 'le nœud courant attend un choix');
-        this.enterNode(node.next!);
+        this.enterNode(resolveNext(node, this.state)!);
         return;
       }
       case 'intent': {
@@ -480,6 +484,15 @@ class Runtime {
         this.runScript(game.items[item]?.look ?? [], null);
         return;
       }
+      case 'item_verb': {
+        const item = this.owned(a.item);
+        const v = Object.hasOwn(game.items[item]?.actions ?? {}, a.verb) ? game.items[item]!.actions[a.verb] : undefined;
+        if (!v) throw new Abort('unknown_verb', `verbe « ${String(a.verb)} » absent de l'objet « ${item} »`);
+        const c = ctx(null);
+        this.exec(v.script, c);
+        this.settle(c);
+        return;
+      }
       case 'leave': {
         this.dialogueNode();
         if (!canLeave(game, this.state)) throw new Abort('cannot_leave', 'impossible de quitter ce dialogue ici');
@@ -489,6 +502,14 @@ class Runtime {
       default:
         throw new Abort('bad_action', `action inconnue « ${String((a as { type?: unknown })?.type)} »`);
     }
+  }
+
+  /** Option `dialogue.echo_choices` : le libellé retenu est dit par le personnage joué. */
+  private echoChoice(label: string): void {
+    const pc = this.game.meta.player_character;
+    if (!this.game.meta.dialogue?.echo_choices || !pc) return;
+    const dl = this.state.dialogue!;
+    this.emit({ type: 'say', text: label, dialogue: dl.id, node: dl.node, ...resolveSpeaker(this.game, this.state, pc) });
   }
 
   private giveOrShow(kind: 'give' | 'show', item: Id): void {

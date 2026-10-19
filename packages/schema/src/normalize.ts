@@ -392,7 +392,7 @@ function normalizeEndGame(v: unknown, path: Path, ctx: NormCtx): string {
   else fail(ctx, [...path, 'type'], `type de fin attendu (win ou game_over), reçu ${describe(v.type)}`);
   const opt = (k: string) => (v[k] === undefined || v[k] === null ? null : readText(v[k], [...path, k], ctx));
   ctx.inlineEndings.push({
-    ending: { id, type, title: opt('title'), text: opt('text'), image: v.image == null ? null : readId(v.image, [...path, 'image'], ctx, "id d'asset") },
+    ending: { id, type, title: opt('title'), text: opt('text'), text_if: [], image: v.image == null ? null : readId(v.image, [...path, 'image'], ctx, "id d'asset") },
     path,
   });
   return id;
@@ -423,6 +423,22 @@ export function normalizeVerbAction(raw: unknown, path: Path, ctx: NormCtx): Ver
     };
   }
   return { label: null, script: normalizeScript(raw, path, ctx) };
+}
+
+/** Verbes d'un objet d'inventaire : `{ verbe: action }` (mêmes formes que les verbes de hotspot). */
+export function normalizeItemActions(raw: unknown, path: Path, ctx: NormCtx): Record<string, VerbAction> {
+  const out: Record<string, VerbAction> = {};
+  if (raw === undefined || raw === null) return out;
+  if (!isRecord(raw)) {
+    fail(ctx, path, `objet { verbe: action } attendu, reçu ${describe(raw)}`);
+    return out;
+  }
+  for (const [verb, v] of Object.entries(raw)) {
+    const id = readId(verb, [...path, verb], ctx, 'verbe');
+    if (verb === 'look' || verb === 'use') fail(ctx, [...path, verb], `« ${verb} » est réservé (utiliser « look » au niveau de l'objet)`);
+    out[id] = normalizeVerbAction(v, [...path, verb], ctx);
+  }
+  return out;
 }
 
 /** Réactions indexées par objet (`use`, `on_give`, `on_show`) avec clé `default`. */
