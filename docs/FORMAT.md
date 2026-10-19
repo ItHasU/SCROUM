@@ -176,6 +176,10 @@ description: "Rallumer le phare avant la tempête."
 start_scene: port                     # obligatoire : scène de départ
 player_character: margot              # personnage joué (optionnel)
 refuse_line: "Ça ne donne rien."      # refus par défaut si le monde n'en déclare pas
+dialogue:
+  echo_choices: true                  # optionnel (défaut false) : le libellé du choix retenu est dit par player_character
+vars:                                 # optionnel : bornes des variables de jeu (set/add)
+  confiance: { min: 0, max: 5 }       # min/max indépendants et optionnels ; non déclarée = non bornée
 
 counters:                             # compteurs nommés par le jeu
   courage: { label: "Courage", hud: true, initial: 1, min: 0 }
@@ -217,6 +221,11 @@ endings:                              # fins (optionnel, voir aussi end_game en 
     title: "Le phare veille"
     text: "Le faisceau balaie la mer."
     image: img_fin_phare
+  fin_variable:
+    type: win
+    text:                             # texte conditionnel : la première variante dont « if » est vraie
+      - { if: { flag: ami }, text: "Vous partez bras dessus, bras dessous." }
+      - "Vous partez seul."           # dernière variante sans « if » = texte par défaut
 ```
 
 **Compteurs.** Valeur initiale `initial`, modifiée par l'effet `counter`. Si `min`/`max`
@@ -224,6 +233,16 @@ sont donnés, la valeur est bornée. Un compteur `hud: true` est affiché en per
 les autres servent aux conditions, aux titres et aux collections. Le **titre courant**
 est le `label` du dernier palier dont `min ≤ valeur` (aucun si la valeur est sous tous
 les paliers).
+
+**Variables bornées (`vars`).** Les variables (`set`/`add`, lues par `{ var: … }`)
+n'ont pas besoin d'être déclarées. Si `vars.<nom>` donne `min` et/ou `max`, le moteur
+borne la valeur après chaque `set`/`add` (et `initial.vars`) : plus besoin de tester
+`gt: 0` avant un `add: -1`.
+
+**Écho des choix (`dialogue.echo_choices`).** Quand un choix de dialogue est touché, le
+moteur émet d'abord un événement `say` dont le locuteur est `player_character` et le
+texte le libellé du choix, puis les répliques du nœud suivant. Sans `player_character`
+ou à `false` (défaut) : rien n'est ajouté. Le texte libre n'est pas concerné.
 
 **Collections.** Une entrée est débloquée dès que sa condition devient vraie (vérifiée
 après chaque action) et **reste débloquée** ensuite.
@@ -262,7 +281,11 @@ songe:
 
 - `ui_skin` : skin des dialogues et de l'interface dans ce monde. Fournis par le moteur :
   `plain`, `chat_retro`, `rpg_bubbles`, `swipe_cards`. Un jeu peut en ajouter dans
-  `content/skins/<nom>.css` (sinon avertissement).
+  `content/skins/<nom>.css` (sinon avertissement). Le CSS est embarqué dans
+  `GameData.skins` (donc dans le `game.json` du zip) : le player l'injecte en mode source
+  comme en mode zip. L'UI pose sur la racine les classes `skin-<nom>` et
+  `data-skin="<nom>"` ; les dialogues portent `data-skin="<nom>"`. Variables de thème
+  de base utilisables : voir `packages/ui/src/style.css` (`--bg`, `--fg`, `--accent`…).
 - `refuse_line` : réplique quand un objet ne sert à rien (objet hors `scope`, ou
   hotspot sans réaction pour cet objet — voir [§6](#6-scènes-scenesidyaml)).
 
@@ -386,6 +409,11 @@ hotspots:
         pied_de_biche: [ … ]
         default: "Ça n'ouvre pas un coffre, ça."
 ```
+
+**« Utiliser » sans objet.** Il n'existe pas de réaction `use` sans objet : la réponse du
+format est un **verbe personnalisé** (`utiliser`, `laver`, `fouiller`…) avec `label`
+(ex. `utiliser: { label: "Utiliser", … }`). Il apparaît dans le menu du hotspot, est listé
+par `listActions` (`verb`) et se teste comme n'importe quel verbe.
 
 **Verbes.** Chaque clé de `actions` (hors `use`) est un verbe affiché dans le menu
 contextuel du hotspot, dans l'ordre du fichier. Verbes usuels, avec libellé par défaut
@@ -608,7 +636,14 @@ nodes:
     lines:
       - "Tiens, la petite-nièce d'Yves."                    # dite par le speaker
       - { speaker: margot, text: "Bonjour Loïc." }          # autre locuteur
+      - { if: { flag: deja_vu }, text: "Encore toi !" }     # réplique conditionnelle
     next: menu                 # enchaînement automatique
+
+  retour:                      # nœud « routeur » : next conditionnel, sans répliques donc sans attente
+    next:
+      - { if: { var: confiance, gte: 3 }, next: confiant }   # première condition vraie gagne
+      - { if: { flag: fache }, next: froid }
+      - { next: neutre }                                      # dernière entrée sans « if » = repli
 
   menu:
     speaker: loic              # optionnel : locuteur par défaut des lignes de ce nœud
@@ -639,11 +674,11 @@ nodes:
 
 | Clé | Rôle |
 |---|---|
-| `lines` | Répliques : texte, ou `{ speaker, text }`, ou liste des deux. Locuteur par défaut : `speaker` du nœud, sinon celui du dialogue. |
+| `lines` | Répliques : texte, ou `{ speaker, text, if }`, ou liste des deux. Locuteur par défaut : `speaker` du nœud, sinon celui du dialogue. `if` (optionnel) : la réplique n'est dite que si la condition est vraie à l'entrée du nœud. |
 | `effects` | Script exécuté à l'entrée du nœud, après l'affichage des répliques. |
 | `choices` | Choix proposés (filtrés par leur `if`). |
 | `free_text` | Saisie libre classée en intentions. |
-| `next` | Nœud suivant automatique. **Exclusif** avec `choices` et `free_text`. |
+| `next` | Nœud suivant automatique : un id, ou une liste `[ { if, next }, …, { next } ]` (branchement conditionnel : première condition vraie ; la dernière entrée peut être sans `if` = repli ; sans repli ni condition vraie, le dialogue se termine). **Exclusif** avec `choices` et `free_text`. |
 | `on_give` / `on_show` | Réactions au don / à la présentation d'un objet. |
 | `speaker` | Locuteur par défaut des lignes du nœud. |
 
@@ -752,6 +787,10 @@ meche:
   consumable: false                       # défaut false
   stackable: false                        # défaut false
   look: { say: margot, text: "Sèche comme un biscuit de mer." }   # script
+  actions:                                # verbes personnalisés depuis l'inventaire (optionnel)
+    boire:                                # id du verbe ; « look » et « use » sont réservés
+      label: "Boire"                      # libellé du bouton (défaut : id mis en forme)
+      do: [ { say: margot, text: "Beurk." }, { take_item: meche } ]   # script (mêmes formes que les verbes de hotspot)
   combine:
     - with: huile                         # l'autre objet
       result: meche_huilee                # objet obtenu (null = aucun)
@@ -765,6 +804,7 @@ meche:
 | `consumable` | Une unité est retirée **automatiquement** après chaque utilisation réussie via une réaction `use.<id_objet>` d'un hotspot. Attention : la réaction compte comme réussie même si elle contient un `if` dont la branche `else` est un refus ; pour un usage conditionnel, préférer `consumable: false` et un `take_item` explicite dans la bonne branche. |
 | `stackable` | L'objet peut être possédé en plusieurs exemplaires (quantité affichée). Sinon, la quantité est plafonnée à 1. |
 | `look` | Script exécuté quand on examine l'objet dans l'inventaire (en plus de l'affichage de `description`). |
+| `actions` | Verbes d'inventaire (`boire`, `lire`…). La fiche de l'objet (toucher l'objet dans le tiroir) montre un bouton par verbe. Action moteur `{ type: 'item_verb', item, verb }` (forme courte de scénario : `act <objet> <verbe>`), listée par `listActions` juste après `look_item`. Le script s'exécute comme `look` (hors ou pendant un dialogue) ; un `take_item` explicite retire l'objet. |
 | `combine` | Combinaisons. **Symétriques** : déclarer `meche + huile` sur `meche` suffit ; la déclarer aussi sur `huile` est redondant (avertissement). |
 
 **Combiner** : sélectionner un objet puis toucher un autre objet de l'inventaire. Si une
@@ -893,6 +933,10 @@ const { game, errors } = loadContent(files); // files : Map<chemin relatif à co
   `has_item`, `ever_had_item`, `quest` (`state`), `all`/`any` (`conditions`), `not`
   (`condition`).
 - Hotspot : `actions: Record<verbe, { label, script }>` et `use: { byItem, default } | null`.
+- Objet : `actions: Record<verbe, { label, script }>` (verbes d'inventaire, `{}` par défaut).
+- Nœud : `next` (repli) + `next_if: { condition, next }[]` (`[]` par défaut) ; `lines[].condition`.
+- Fin : `text` (défaut) + `text_if: { condition, text }[]`. `GameData.vars: Record<id, { id, min, max }>`,
+  `GameData.skins: Record<nom, css>`, `GameMeta.dialogue.echo_choices`.
 - Sortie : `condition` (← `if`), `script` (← `do`), `else` ; `id` toujours rempli.
 - Nœud : `lines: { speaker, text }[]` (locuteur résolu), `choices[].condition` (← `if`),
   `free_text: { intents, fallback, threshold, placeholder } | null` (fallback par défaut :
@@ -920,7 +964,7 @@ Historique :
 
 | Version | Changements |
 |---|---|
-| 1 | Version initiale. |
+| 1 | Version initiale. Ajouts optionnels et rétrocompatibles faits **avant toute publication**, donc sans incrément de `formatVersion` : `actions` sur les objets (verbes d'inventaire), `next` conditionnel et `lines[].if` dans les dialogues, `vars` bornées, `endings.*.text` conditionnel, `content/skins/*.css` embarqué dans `GameData.skins`, `dialogue.echo_choices`. |
 
 ---
 
