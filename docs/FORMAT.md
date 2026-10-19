@@ -73,13 +73,25 @@ editor:
 images:
   format: webp            # webp | png | jpg (défaut webp)
   max_width: 1280         # largeur max des images au build
+  postprocess:            # optionnel : post-traitement au build, par monde (voir §4 « style.md »)
+    royaumes_azerine: { pixelate: 4, colors: 32 }
+    default: { colors: 64 }
+comfyui:                  # optionnel : valeurs par défaut des paramètres de workflow (docs/IMAGES.md)
+  models:
+    unet: qwen_image_2512_q4_k_m.gguf
+    clip: qwen_2.5_vl_7b_fp8_scaled.safetensors
+    vae: qwen_image_vae.safetensors
+  timeout_s: 600
 ```
 
 ### `scroum.local.yaml` (gitignoré)
 
 ```yaml
 comfyui:
-  url: http://192.168.1.20:8188
+  url: http://192.168.1.20:8188   # défaut : http://127.0.0.1:8188
+  models:                         # surcharge comfyui.models de scroum.project.yaml
+    unet: mon_modele.safetensors
+  timeout_s: 900                  # délai maximal par candidat
 ```
 
 Clés libres en plus : ce fichier est propre à la machine.
@@ -263,6 +275,40 @@ Texte libre, avec front matter `status` optionnel. Conventionnellement :
 `pitch.md` (l'histoire), `tone.md` (ton et ligne éditoriale, injecté dans le prompt de
 Claude), `style.md` (direction artistique, préfixes de prompt par monde, palette,
 négatif commun). D'autres fichiers sont permis (`personnages.md`…).
+
+#### `style.md` : convention lue par la génération d'images
+
+Le texte reste libre, mais ces éléments sont lus par `@scroum/images` (génération de prompts) et le build :
+
+````markdown
+---
+status: draft
+postprocess:                  # optionnel ; scroum.project.yaml (images.postprocess) est prioritaire
+  royaumes_azerine: { pixelate: 4, colors: 32 }   # pixelate : taille d'un gros pixel ; colors : 2..256
+  default: { colors: 64 }
+---
+## Négatif commun (tous mondes)
+
+```
+text, watermark, nsfw
+```
+
+## Les Royaumes d'Azerine (`royaumes_azerine`)
+
+- **Préfixe** : `16-bit pixel art, fantasy MMORPG screenshot, `
+- **Suffixe** : `, soft magical glow, no text`
+- **Négatif spécifique** : `photorealistic, 3D render`
+- **Palette** : émeraude `#2E8B57`, or `#E0B040`
+````
+
+- Une section de monde est un titre contenant l'id du monde entre parenthèses et backticks (`` (`royaumes_azerine`) ``),
+  suivi de puces `**Préfixe**`, `**Suffixe**`, `**Négatif spécifique**`, `**Palette**` (valeurs en `code` en ligne).
+- Le négatif commun est le premier bloc de code (ou `code` en ligne) sous un titre contenant « Négatif commun ».
+- Prompt envoyé = `préfixe + prompt de l'asset + suffixe` ; négatif = `commun + monde + négatif de l'asset`.
+  (Les workflows d'édition reçoivent l'instruction telle quelle, sans préfixe.) Le `prompt` stocké dans `assets.yaml`
+  est le prompt **sans** style, pour ne pas le doubler à la régénération.
+- Le monde d'un asset est son champ `world` (voir §13), sinon celui de la scène dont il est le décor ou du personnage
+  dont il est l'avatar/portrait.
 
 ### Mondes (`bible/worlds.yaml`)
 
@@ -854,7 +900,14 @@ img_port_bg:
   model: "qwen-image-q4"
   width: 1280
   height: 720
+  world: royaumes_azerine       # optionnel : monde pour le style (sinon déduit des scènes/personnages)
 ```
+
+Génération (voir `docs/IMAGES.md`) : `scroum gen-image` ou l'Atelier d'images déposent des candidats
+`assets/_candidates/<assetId>/<n>.png` + `<n>.json` (prompt, graine, workflow, références, modèle). **Retenir** un candidat copie
+l'image dans `assets/images/<assetId>.<ext>`, renseigne `prompt`, `seed`, `workflow`, `references`, `model`, `width`, `height` et
+passe le statut à `review` (même si l'asset était `validated` : l'image a changé). Seul le bouton « Valider » de l'Atelier
+(`POST /api/assets/<id>/validate` avec `confirm: true`) pose `validated`.
 
 Toute référence à un asset (`background`, `avatar`, `portrait`, `icon`, `image`,
 `images`) doit être déclarée ici. Claude Code peut **proposer** des candidats dans

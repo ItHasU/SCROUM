@@ -6,7 +6,7 @@ import sharp from 'sharp';
 import { zipSync, strToU8 } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { FORMAT_VERSION, FormatVersionError, GameZipError, readGameZip } from '@scroum/schema';
-import { buildProject } from './build';
+import { buildProject, postprocessResolver, processImages } from './build';
 
 /** Ignore un éventuel `dist/` local (build git-ignoré) lors de la copie de l'exemple. */
 const noDist = (src: string): boolean => !/[\\/]dist$/.test(src);
@@ -81,5 +81,47 @@ describe('readGameZip', () => {
     expect(() => readGameZip(zipOf({ title: 'x' }))).toThrow(FormatVersionError);
     expect(() => readGameZip(new Uint8Array([1, 2, 3]))).toThrow(GameZipError);
     expect(() => readGameZip(zipSync({ 'a.txt': strToU8('a') }))).toThrow(/manifest\.json absent/);
+  });
+});
+
+describe('post-traitement des images', () => {
+  const noise = async (): Promise<Buffer> => {
+    const w = 64;
+    const raw = Buffer.alloc(w * w * 3);
+    for (let i = 0; i < raw.length; i++) raw[i] = (i * 37 + ((i / 3) | 0) * 11) % 256;
+    return sharp(raw, { raw: { width: w, height: w, channels: 3 } }).png().toBuffer();
+  };
+  const pixels = async (b: Uint8Array) => {
+    const { data, info } = await sharp(b).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    return { data, w: info.width, colors: new Set(Array.from({ length: data.length / 3 }, (_, i) => data.subarray(i * 3, i * 3 + 3).join(','))).size };
+  };
+
+  it('pixelise et quantifie selon le réglage donné', async () => {
+    const dir = join(tmp, 'pp');
+    mkdirSync(join(dir, 'assets/images'), { recursive: true });
+    writeFileSync(join(dir, 'assets/images/a.png'), await noise());
+    writeFileSync(join(dir, 'assets/images/b.png'), await noise());
+    const out = await processImages(dir, { format: 'png', max_width: 1280 }, { postprocess: (id) => (id === 'a' ? { pixelate: 8, colors: 4 } : null) }, []);
+    const a = await pixels(out.get('a')!.bytes);
+    expect(a.colors).toBeLessThanOrEqual(4);
+    // blocs de 8x8 uniformes
+    for (const [x, y] of [[0, 0], [8, 16], [56, 56]] as const) {
+      const at = (dx: number, dy: number) => a.data.subarray(((y + dy) * a.w + x + dx) * 3, ((y + dy) * a.w + x + dx) * 3 + 3).join(',');
+      expect(at(7, 7)).toBe(at(0, 0));
+    }
+    expect((await pixels(out.get('b')!.bytes)).colors).toBeGreaterThan(100);
+  });
+
+  it('lit le réglage de style.md (front-matter) et le laisse surcharger par le projet', async () => {
+    const r = join(tmp, 'pp2');
+    cpSync(repo, r, { recursive: true, filter: noDist });
+    const game = (await buildProject(r)).report.game!;
+    mkdirSync(join(r, 'content/bible'), { recursive: true });
+    writeFileSync(join(r, 'content/bible/style.md'), '---\npostprocess:\n  default:\n    colors: 8\n---\n# Style\n');
+    expect((await postprocessResolver(join(r, 'content'), null, game))('img_port_bg')).toEqual({ colors: 8 });
+    const cfg = { images: { format: 'webp', max_width: 1280, postprocess: { default: { pixelate: 4 } } } } as never;
+    expect((await postprocessResolver(join(r, 'content'), cfg, game))('img_port_bg')).toEqual({ pixelate: 4 });
+    const built = await buildProject(r);
+    expect(built.ok).toBe(true);
   });
 });

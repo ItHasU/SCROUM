@@ -28,7 +28,8 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/schema` | Types canoniques, schémas zod des fichiers, normalisation, `loadContent`, `FORMAT_VERSION`, `migrate`, visiteurs | M0 ✔ |
 | `@scroum/validate` | Validation niveau 1 (schéma, règles, références, obtenabilité) ; `@scroum/validate/node` pour la lecture disque ; point d'extension `Analyzer` | M0 ✔, jouabilité (BFS sur `step`, soft-locks, chemins rejouables) M1b ✔ |
 | `@scroum/build` | Résolution d'un dépôt de jeu (`resolveProject`) et `buildProject` (validation → images sharp/webp → zip) | M2 ✔ |
-| `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit` ✔ ; `gen-image` (message « non implémenté », M5) | M2 ✔ |
+| `@scroum/images` | `ImageProvider`, `ComfyUIProvider`, workflows à placeholders, `style.md`, candidats et sélection (`assets.yaml`) ; `@scroum/images/testing` = faux ComfyUI | M5 ✔ |
+| `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit`, `gen-image` (via l'éditeur s'il tourne, sinon direct) | M2 ✔, M5 ✔ |
 | `@scroum/engine` | Machine à états pure : `start`/`step`/`listActions`, vues, `KeywordBackend`, harnais de scénarios | M1 ✔ (logique) |
 | `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | M1 ✔ |
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | M1 ✔ |
@@ -36,8 +37,8 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/editor-web` (`apps/editor/web`) | Front de l'éditeur (TS vanilla, Cytoscape + ELK) | M3 ✔ + panneau Claude (M4 front) |
 | `@scroum/desktop` (`apps/desktop`) | Application de bureau Electron (accueil, éditeur, player) | ✔ |
 
-Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `build` ←
-`cli`, `editor-server` (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépend aussi de `engine` (analyse de jouabilité).
+Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` ← `validate` ← `images` ← `build` ←
+`cli`, `editor-server` (qui dépendent aussi de `images`) (`cli` charge `editor-server` à la demande pour `edit`) ; `validate` dépend aussi de `engine` (analyse de jouabilité).
 
 ## Branches
 
@@ -159,7 +160,12 @@ sont refusés (403). Corps JSON pour les écritures. Routes :
 | `POST /api/claude` | corps `{ prompt, selected?: { kind, id, file } }` ; réponse SSE : `{type:'claude', event}` (une ligne stream-json), puis `{type:'done', code, files, git, error?, stderr?}` ; `files` = fichiers modifiés (relatifs à la racine du dépôt, via instantané `git status`+empreinte avant/après), `null` hors dépôt git. Une demande à la fois (409) |
 | `POST /api/claude/revert` | corps `{ files }` : `git checkout HEAD -- f` (fichiers suivis) ou suppression (fichiers créés par Claude) |
 | `GET /api/diff?file=` | `{ file, diff }` (diff git ; fichier non suivi : diff contre /dev/null) |
-| `POST /api/gen-image` | 501 « génération d'images non implémentée (M5) » |
+| `GET /api/comfyui` | `{ url, ok, version?, error?, models }` : ping de ComfyUI (`comfyui.url` de `scroum.local.yaml`) |
+| `GET /api/assets` | liste des assets de `assets.yaml` : statut, type, prompt, `hasImage`, nombre de candidats |
+| `POST /api/gen-image` | corps `{ assetId, n?, prompt?, negative?, workflow?, references?, seed?, variantOf? }` (`references` : ids d'assets ou `candidate:<n>` ; `variantOf` : n° d'un candidat pris comme référence, workflow d'édition). Avec `Accept: text/event-stream` : SSE `start`, `progress {index,total,phase,value,max}`, `candidate`, `done {ok, candidates, error?, code?}` ; sinon JSON `{ ok, candidates }`. Une génération à la fois (409). Erreurs : 400 (asset/prompt/référence), 502 (ComfyUI injoignable, noeud ou modèle inconnu, exécution), 504 (délai) avec `code` |
+| `GET /api/candidates/<assetId>` · `…/<n>.png` | métadonnées des candidats · image |
+| `POST /api/assets/<id>/select` | corps `{ candidate }` : copie dans `assets/images/`, met `assets.yaml` à jour, statut `review` |
+| `POST /api/assets/<id>/validate` | corps `{ confirm: true }` obligatoire (action humaine) : statut `validated` |
 | `/play/…` | player : Vite `middlewareMode` sur `apps/player` (base `/play/`) si `apps/player/index.html` existe, sinon page 503 « Player non disponible » ; ouvrir `/play/?source=/api` |
 | `/` | front de l'éditeur (`apps/editor/web`, TS vanilla) servi par Vite en `middlewareMode` (sans HMR ; pas d'étape de build) ; l'option `webDir` sert un dossier statique à la place (tests) |
 
@@ -257,3 +263,19 @@ déclenche aucun message : le player conserve son état et renvoie un `state` s'
   de `game.json`). Le player les cherche quand même : `GET /api/files/skins/<nom>.css` en source directe, entrées
   `skins/<nom>.css` du zip sinon (le build ne les y met pas encore : à ajouter au build, sans changer `formatVersion`).
   Le CSS cible `.scroum.skin-<nom>`.
+
+
+## Génération d'images (M5)
+
+`@scroum/images` (sans dépendance réseau hors `fetch`/`WebSocket` natifs de Node 24) :
+
+- `ImageProvider` (`generate`, `edit`) et `ComfyUIProvider` : upload des références (`POST /upload/image`, multipart), `POST /prompt`
+  avec un `client_id`, progression par `ws /ws?clientId=` avec **repli** sur le polling de `GET /history/<id>` (toujours actif en
+  parallèle), `GET /view`. Erreurs typées `ImageError` (`unreachable`, `timeout`, `unknown_node`, `unknown_model`, `execution`…).
+- Workflows API-format dans `workflows/*.json` (génériques à la racine du dépôt SCROUM, ceux du jeu en premier). Substitution typée
+  de `{{placeholder}}` sur l'objet JSON parsé (jamais sur le texte). Voir `docs/IMAGES.md`.
+- `assets.ts` : `generateForAsset` → `_candidates/`, `selectCandidate` (édition de `assets.yaml` via `yaml.parseDocument`, commentaires
+  et style conservés), `validateAsset` (réservé à l'humain, jamais appelé par la CLI ni par `select`).
+- `style.ts` : lecture de `bible/style.md` (préfixe, suffixe, négatifs, post-traitement) ; le build (`@scroum/build`) applique
+  pixelisation et quantification de palette par monde avec sharp.
+- Tests : `startFakeComfy()` (HTTP + WebSocket en processus) sert aussi les tests du serveur, de la CLI et du front.

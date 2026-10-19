@@ -9,6 +9,10 @@ import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
+import { writeFileSync } from 'node:fs';
+import { startFakeComfy, type FakeComfy } from '@scroum/images/testing';
+
+let comfy: FakeComfy;
 
 let tmp: string;
 let child: ChildProcess;
@@ -41,6 +45,8 @@ const until = async (fn: () => boolean, ms = 8000): Promise<void> => {
 beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'scroum-web-'));
   cpSync(resolve(__dirname, '../../../../examples/demo'), tmp, { recursive: true });
+  comfy = await startFakeComfy({ delayMs: 10 });
+  writeFileSync(join(tmp, 'scroum.local.yaml'), `comfyui:\n  url: ${comfy.url}\n  models: { unet: u, clip: c, vae: v }\n`);
   await startServer(tmp);
   const realFetch = globalThis.fetch;
   vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => realFetch(typeof input === 'string' && input.startsWith('/') ? baseUrl + input : input, init));
@@ -53,6 +59,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   child?.kill();
+  await comfy?.close();
   rmSync(tmp, { recursive: true, force: true });
 });
 
@@ -61,7 +68,7 @@ const view = (v: string): HTMLElement => document.querySelector<HTMLElement>(`.v
 
 describe('front de l’éditeur (jsdom)', () => {
   it('affiche la mise en page et le compteur de validation', () => {
-    expect(document.querySelectorAll('.nav-btn')).toHaveLength(6);
+    expect(document.querySelectorAll('.nav-btn')).toHaveLength(7);
     const c = document.querySelector<HTMLElement>('#validation-counter')!;
     expect(c.dataset.errors).toBe('0');
     expect(document.title).toContain('Éditeur SCROUM');
@@ -113,5 +120,32 @@ describe('front de l’éditeur (jsdom)', () => {
     nav('graph');
     await until(() => Number(view('graph').dataset.ready ?? 0) > 5, 15000);
     expect(Number(view('graph').dataset.ready)).toBeGreaterThanOrEqual(15);
+  });
+
+  it('Atelier d’images : génération, sélection, comparaison, validation humaine', async () => {
+    nav('images');
+    await until(() => view('images').querySelectorAll('.img-row').length > 5);
+    expect(view('images').textContent).toContain('connecté');
+    view('images').querySelector<HTMLElement>('.img-row[data-asset="img_port_bg"]')!.click();
+    await until(() => (view('images').querySelector<HTMLTextAreaElement>('#img-prompt')?.value ?? '').includes('port breton'));
+    const n = view('images').querySelector<HTMLInputElement>('#img-n')!;
+    n.value = '2';
+    view('images').querySelector<HTMLElement>('#img-generate')!.click();
+    await until(() => view('images').querySelectorAll('.cand').length === 2, 15000);
+    expect(view('images').querySelector('#img-status')!.textContent).toMatch(/Terminé|Candidat/);
+    // Retenir le candidat 1 → statut « à relire », vignette dans la liste
+    await until(() => !view('images').querySelector<HTMLButtonElement>('.cand .select')!.disabled);
+    view('images').querySelector<HTMLElement>('.cand .select')!.click();
+    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-review'));
+    expect(view('images').querySelector('.img-row[data-asset="img_port_bg"] img.thumb')).toBeTruthy();
+    // Comparaison avec un autre asset
+    const cmp = view('images').querySelector<HTMLSelectElement>('#img-compare')!;
+    cmp.value = 'img_loic';
+    cmp.dispatchEvent(new Event('change'));
+    await until(() => view('images').querySelectorAll('.cmp > div').length === 2);
+    // Validation (action humaine)
+    await until(() => !view('images').querySelector<HTMLButtonElement>('#img-validate')!.disabled);
+    view('images').querySelector<HTMLElement>('#img-validate')!.click();
+    await until(() => !!view('images').querySelector('.img-row[data-asset="img_port_bg"] .st-validated'));
   });
 });

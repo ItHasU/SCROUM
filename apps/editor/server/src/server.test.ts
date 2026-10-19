@@ -111,8 +111,7 @@ describe('compilation et rapports', () => {
     expect((await api('/api/images/inconnue')).status).toBe(404);
     expect((await api('/api/images/..%2Fgame')).status).toBe(400);
     const gi = await api('/api/gen-image', { method: 'POST' });
-    expect(gi.status).toBe(501);
-    expect((await gi.json()).error).toMatch(/M5/);
+    expect(gi.status).toBe(400);
   });
 
   it('build : produit un zip relisible', async () => {

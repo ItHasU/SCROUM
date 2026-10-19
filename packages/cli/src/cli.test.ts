@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import { startFakeComfy } from '@scroum/images/testing';
+import { startEditorServer } from '@scroum/editor-server';
+import { resolveProject } from '@scroum/build';
 import { main, type Io } from './index';
 
 /** Ignore un éventuel `dist/` local (build git-ignoré) lors de la copie de l'exemple. */
@@ -130,9 +133,58 @@ describe('scroum build', () => {
     expect(await main(['build', dir], t)).toBe(1);
     expect(existsSync(join(dir, 'dist'))).toBe(false);
   });
-  it('gen-image : message M5', async () => {
+});
+
+describe('scroum gen-image', () => {
+  async function gameRepo(name: string, comfyUrl: string): Promise<string> {
+    const dir = join(tmp, name);
+    cpSync(join(examples, 'demo'), dir, { recursive: true, filter: noDist });
+    writeFileSync(join(dir, 'scroum.local.yaml'), `comfyui:\n  url: ${comfyUrl}\n  models: { unet: u, clip: c, vae: v }\n`);
+    return dir;
+  }
+
+  it('usage et options invalides', async () => {
     const t = io();
-    expect(await main(['gen-image'], t)).toBe(1);
-    expect(t.stderr.join()).toMatch(/M5/);
+    expect(await main(['gen-image', 'demo'], t)).toBe(2);
+    expect(t.stderr.join()).toMatch(/--asset/);
+    expect(await main(['gen-image', 'demo', '--asset', 'x', '--n', 'abc'], io())).toBe(2);
+    expect(await main(['gen-image', 'demo', '--asset', 'x', '--bidon'], io())).toBe(2);
+  });
+
+  it('génération directe (sans éditeur) : candidats déposés, statut inchangé', async () => {
+    const comfy = await startFakeComfy();
+    try {
+      const dir = await gameRepo('gen-direct', comfy.url);
+      const t = io();
+      expect(await main(['gen-image', dir, '--asset', 'img_port_bg', '--n', '2', '--seed', '5', '--no-server'], t)).toBe(0);
+      expect(t.stdout.join('\n')).toMatch(/génération directe/);
+      expect(existsSync(join(dir, 'content/assets/_candidates/img_port_bg/2.png'))).toBe(true);
+      expect(readFileSync(join(dir, 'content/assets/assets.yaml'), 'utf8')).not.toMatch(/img_port_bg:.*status: (review|validated)/);
+      expect(existsSync(join(dir, 'content/assets/images/img_port_bg.png'))).toBe(false);
+    } finally {
+      await comfy.close();
+    }
+  });
+
+  it("passe par l'éditeur s'il tourne", async () => {
+    const comfy = await startFakeComfy();
+    const dir = await gameRepo('gen-server', comfy.url);
+    const srv = await startEditorServer({ project: resolveProject(dir), port: 0, playerDir: join(tmp, 'none') });
+    try {
+      const t = io();
+      expect(await main(['gen-image', dir, '--asset', 'img_loic', '--n', '1', '--url', srv.url], t)).toBe(0);
+      expect(t.stdout.join('\n')).toMatch(/Via l'éditeur/);
+      expect(existsSync(join(dir, 'content/assets/_candidates/img_loic/1.png'))).toBe(true);
+    } finally {
+      await srv.close();
+      await comfy.close();
+    }
+  });
+
+  it('erreur claire si ComfyUI est injoignable', async () => {
+    const dir = await gameRepo('gen-down', 'http://127.0.0.1:9');
+    const t = io();
+    expect(await main(['gen-image', dir, '--asset', 'img_port_bg', '--no-server'], t)).toBe(1);
+    expect(t.stderr.join()).toMatch(/injoignable/);
   });
 });

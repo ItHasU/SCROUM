@@ -217,6 +217,9 @@ importers:
       '@scroum/build':
         specifier: workspace:*
         version: link:../../../packages/build
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../../../packages/images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../../../packages/schema
@@ -263,6 +266,9 @@ importers:
       '@scroum/editor-server':
         specifier: workspace:*
         version: link:../server
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../../../packages/images
       '@scroum/validate':
         specifier: workspace:*
         version: link:../../../packages/validate
@@ -303,6 +309,9 @@ importers:
 
   packages/build:
     dependencies:
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema
@@ -330,6 +339,9 @@ importers:
       '@scroum/editor-server':
         specifier: workspace:*
         version: link:../../apps/editor/server
+      '@scroum/images':
+        specifier: workspace:*
+        version: link:../images
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema
@@ -351,6 +363,18 @@ importers:
       '@scroum/schema':
         specifier: workspace:*
         version: link:../schema
+
+  packages/images:
+    dependencies:
+      '@scroum/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@scroum/validate':
+        specifier: workspace:*
+        version: link:../validate
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   packages/schema:
     dependencies:

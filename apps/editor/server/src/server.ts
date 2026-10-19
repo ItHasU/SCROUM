@@ -8,6 +8,20 @@ import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chokidar from 'chokidar';
 import { buildProject, type ResolvedProject } from '@scroum/build';
+import {
+  ComfyUIProvider,
+  ImageError,
+  checkId,
+  generateForAsset,
+  listAssets,
+  listCandidates,
+  loadImageConfig,
+  selectCandidate,
+  validateAsset,
+  candidatesDir,
+  type CandidateMeta,
+  type ImageProvider,
+} from '@scroum/images';
 import { IMAGE_EXTENSIONS, classifyPath, imageMime, loadContent, normalizePath } from '@scroum/schema';
 import { validateContent } from '@scroum/validate';
 import { readContentDir } from '@scroum/validate/node';
@@ -35,6 +49,8 @@ export interface EditorServerOptions {
    * (`web` à la racine, `player` sous `/play/`). Vite n'est alors jamais chargé.
    */
   staticDirs?: { web: string; player: string };
+  /** Fournisseur d'images injecté (tests) ; par défaut ComfyUI selon scroum.local.yaml. */
+  imageProvider?: ImageProvider;
   /** Délai de regroupement des événements SSE (ms). */
   debounceMs?: number;
 }
@@ -154,6 +170,8 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
 
   // ---- Claude : une exécution à la fois ----------------------------------
   let claudeBusy = false;
+  let genBusy = false;
+  const imgCtx = () => ({ root, contentDir, config: project.config, ...(options.imageProvider ? { provider: options.imageProvider } : {}) });
 
   const compile = async () => {
     const files = await readContentDir(contentDir);
@@ -255,9 +273,50 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
       return sendJson(res, 200, { ok: true, zip: r.zipPath, manifest: r.manifest, warnings: r.warnings });
     }
 
-    if (path === '/api/gen-image' && method === 'POST') {
-      return sendJson(res, 501, { ok: false, error: "génération d'images non implémentée (M5)" });
+    if (path === '/api/comfyui' && method === 'GET') {
+      const cfg = await loadImageConfig(root, project.config);
+      try {
+        const info = await new ComfyUIProvider({ url: cfg.url }).ping();
+        return sendJson(res, 200, { url: cfg.url, models: cfg.models, ...info });
+      } catch (e) {
+        return sendJson(res, 200, { url: cfg.url, models: cfg.models, ok: false, error: (e as Error).message });
+      }
     }
+
+    if (path === '/api/assets' && method === 'GET') return sendJson(res, 200, { assets: await listAssets(contentDir) });
+
+    const cand = /^\/api\/candidates\/([^/]+)(?:\/([^/]+))?$/.exec(path);
+    if (cand && method === 'GET') {
+      const id = checkIdHttp(decodeURIComponent(cand[1]!));
+      if (!cand[2]) return sendJson(res, 200, { candidates: await listCandidates(contentDir, id) });
+      const file = decodeURIComponent(cand[2]);
+      if (!/^\d+\.(png|webp|jpe?g)$/i.test(file)) throw new HttpError(400, 'nom de candidat invalide');
+      const f = join(candidatesDir(contentDir, id), file);
+      if (!existsSync(f)) throw new HttpError(404, `candidat introuvable : ${id}/${file}`);
+      res.writeHead(200, { 'content-type': imageMime(file), 'cache-control': 'no-cache' });
+      return void res.end(await readFile(f));
+    }
+
+    const act = /^\/api\/assets\/([^/]+)\/(select|validate)$/.exec(path);
+    if (act && method === 'POST') {
+      const id = checkIdHttp(decodeURIComponent(act[1]!));
+      const body = await readJson(req);
+      try {
+        if (act[2] === 'select') {
+          if (typeof body.candidate !== 'number' || !Number.isInteger(body.candidate)) throw new HttpError(400, 'champ « candidate » (numéro) requis');
+          const r = await selectCandidate(contentDir, id, body.candidate);
+          return sendJson(res, 200, { ok: true, file: r.file, status: 'review' });
+        }
+        // Le statut `validated` n'est posé que sur demande explicite de l'humain (bouton « Valider » de l'Atelier).
+        if (body.confirm !== true) throw new HttpError(400, 'validation refusée sans « confirm: true » (action humaine explicite)');
+        await validateAsset(contentDir, id);
+        return sendJson(res, 200, { ok: true, status: 'validated' });
+      } catch (e) {
+        throw imageHttpError(e);
+      }
+    }
+
+    if (path === '/api/gen-image' && method === 'POST') return handleGenImage(req, res);
 
     if (path === '/api/claude' && method === 'POST') return handleClaude(req, res);
 
@@ -277,6 +336,54 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
     }
 
     throw new HttpError(404, 'route inconnue');
+  }
+
+  async function handleGenImage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const b = await readJson(req);
+    const id = checkIdHttp(b.assetId);
+    const str = (k: string): string | undefined => (typeof b[k] === 'string' ? (b[k] as string) : undefined);
+    const num = (k: string): number | undefined => (typeof b[k] === 'number' && Number.isFinite(b[k]) ? (b[k] as number) : undefined);
+    if (b.references !== undefined && (!Array.isArray(b.references) || b.references.some((r) => typeof r !== 'string'))) throw new HttpError(400, '« references » doit être une liste de chaînes');
+    const request = {
+      assetId: id,
+      ...(num('n') !== undefined ? { n: num('n')! } : {}),
+      ...(str('prompt') !== undefined ? { prompt: str('prompt')! } : {}),
+      ...(str('negative') !== undefined ? { negative: str('negative')! } : {}),
+      ...(str('workflow') !== undefined ? { workflow: str('workflow')! } : {}),
+      ...(b.references ? { references: b.references as string[] } : {}),
+      ...(num('seed') !== undefined ? { seed: num('seed')! } : {}),
+      ...(num('variantOf') !== undefined ? { variantOf: num('variantOf')! } : {}),
+    };
+    if (genBusy) throw new HttpError(409, 'une génération est déjà en cours');
+    const sse = (req.headers.accept ?? '').includes('text/event-stream');
+    const ac = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) ac.abort();
+    });
+    genBusy = true;
+    const send = (payload: unknown): void => {
+      if (sse) res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+    if (sse) res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' });
+    try {
+      send({ type: 'start', assetId: id });
+      const metas: CandidateMeta[] = await generateForAsset(imgCtx(), request, {
+        signal: ac.signal,
+        onProgress: (p) => send({ type: 'progress', ...p }),
+        onCandidate: (c) => send({ type: 'candidate', candidate: c }),
+      });
+      if (sse) {
+        send({ type: 'done', ok: true, candidates: metas });
+        res.end();
+      } else sendJson(res, 200, { ok: true, candidates: metas });
+    } catch (e) {
+      if (sse) {
+        send({ type: 'done', ok: false, error: (e as Error).message, code: e instanceof ImageError ? e.code : 'error' });
+        res.end();
+      } else throw imageHttpError(e);
+    } finally {
+      genBusy = false;
+    }
   }
 
   async function handleClaude(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -452,6 +559,22 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
+}
+
+function checkIdHttp(id: unknown): string {
+  try {
+    return checkId(id);
+  } catch (e) {
+    throw imageHttpError(e);
+  }
+}
+
+const IMAGE_STATUS: Record<string, number> = { missing_param: 400, workflow_not_found: 400, workflow_invalid: 422, unreachable: 502, timeout: 504, aborted: 499, unknown_node: 502, unknown_model: 502, rejected: 502, execution: 502, no_output: 502 };
+
+/** Traduit une ImageError en HttpError (le code métier reste dans `code`). */
+function imageHttpError(e: unknown): unknown {
+  if (e instanceof ImageError) return new HttpError(IMAGE_STATUS[e.code] ?? 500, e.message, { code: e.code });
+  return e;
 }
 
 /** Port TCP libre attribué par l'OS. */

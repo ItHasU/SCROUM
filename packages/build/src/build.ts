@@ -1,7 +1,8 @@
 /** Build du `.scroum.zip` d'un dépôt de jeu. */
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { IMAGE_EXTENSIONS, writeGameZip, type ContentError, type GameData, type ZipManifest } from '@scroum/schema';
+import { assetWorld, loadStyle, postprocessFor } from '@scroum/images';
+import { IMAGE_EXTENSIONS, writeGameZip, type ContentError, type GameData, type Postprocess, type ProjectConfig, type ZipManifest } from '@scroum/schema';
 import { readContentDir } from '@scroum/validate/node';
 import { validateContent, type ValidationReport } from '@scroum/validate';
 import { resolveProject, type ResolvedProject } from './project';
@@ -11,6 +12,8 @@ export interface BuildOptions {
   buildDate?: string;
   /** Force la copie brute des images (sans sharp). */
   noSharp?: boolean;
+  /** Post-traitement (pixelisation, palette) d'un asset ; null = aucun. */
+  postprocess?: (assetId: string) => Postprocess | null;
 }
 
 export interface BuildResult {
@@ -70,6 +73,8 @@ export async function processImages(
     }
     try {
       let img = sharp(raw).rotate().resize({ width: cfg.max_width, withoutEnlargement: true });
+      const pp = opts.postprocess?.(id) ?? null;
+      if (pp?.pixelate || pp?.colors) img = sharp(await stylize(sharp, await img.png().toBuffer(), pp));
       img = cfg.format === 'webp' ? img.webp({ quality: 85 }) : cfg.format === 'png' ? img.png() : img.jpeg({ quality: 88 });
       result.set(id, { ext: cfg.format, bytes: new Uint8Array(await img.toBuffer()) });
     } catch (e) {
@@ -78,6 +83,30 @@ export async function processImages(
     }
   }
   return result;
+}
+
+/** Pixelisation (réduction puis agrandissement au plus proche voisin) et quantification de palette. */
+async function stylize(sharp: Sharp, png: Buffer, pp: Postprocess): Promise<Buffer> {
+  let buf = png;
+  if (pp.pixelate) {
+    const { width = 0, height = 0 } = await sharp(buf).metadata();
+    const w = Math.max(1, Math.round(width / pp.pixelate));
+    const h = Math.max(1, Math.round(height / pp.pixelate));
+    const small = await sharp(buf).resize(w, h, { kernel: 'nearest', fit: 'fill' }).png().toBuffer();
+    buf = await sharp(small).resize(width, height, { kernel: 'nearest', fit: 'fill' }).png().toBuffer();
+  }
+  if (pp.colors) buf = await sharp(buf).png({ palette: true, colors: pp.colors, dither: 0 }).toBuffer();
+  return buf;
+}
+
+/** Réglage par monde : scroum.project.yaml (`images.postprocess`) prime sur le front-matter de bible/style.md. */
+export async function postprocessResolver(contentDir: string, config: ProjectConfig | null, game: GameData): Promise<(id: string) => Postprocess | null> {
+  const style = await loadStyle(contentDir);
+  const fromProject = config?.images.postprocess;
+  return (id) => {
+    const world = assetWorld(game, id, game.assets[id]?.world);
+    return (fromProject && ((world && fromProject[world]) || fromProject.default)) || postprocessFor(style, world);
+  };
 }
 
 /** Valide complètement puis produit `<output>/<nom>-<version>.scroum.zip`. Aucun zip si la validation échoue. */
@@ -90,7 +119,7 @@ export async function buildProject(target: string | ResolvedProject, options: Bu
   const images = await processImages(
     project.contentDir,
     project.config?.images ?? { format: 'webp', max_width: 1280 },
-    options,
+    { ...options, postprocess: options.postprocess ?? (await postprocessResolver(project.contentDir, project.config, game)) },
     warnings,
   );
   for (const [id, img] of images) if (game.assets[id]) game.assets[id].file = `images/${id}.${img.ext}`;

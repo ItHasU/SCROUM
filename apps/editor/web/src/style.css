@@ -127,3 +127,21 @@ form.inline { display: flex; gap: 4px; } form.inline input { flex: 1; min-width:
 #toasts { position: fixed; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 50; }
 .toast { background: var(--bg-card); border: 1px solid var(--ok); padding: 8px 12px; border-radius: 6px; max-width: 420px; box-shadow: 0 4px 14px #0006; } .toast.err { border-color: var(--danger); }
 @media (max-width: 1100px) { .body { grid-template-columns: 120px minmax(0, 1fr) 300px; } }
+
+/* Atelier d'images */
+.view.images { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+.img-list { display: flex; flex-direction: column; gap: 4px; max-height: calc(100vh - 120px); overflow: auto; }
+.img-row { display: flex; gap: 8px; align-items: center; text-align: left; padding: 4px 6px; width: 100%; }
+.img-row.active { border-color: var(--accent); }
+.img-row .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; background: var(--bg-input); flex: none; }
+.img-row .meta { display: flex; flex-direction: column; min-width: 0; } .img-row .meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.img-form { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; align-items: start; }
+.img-form textarea { width: 100%; min-height: 70px; resize: vertical; }
+.img-progress { height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin: 6px 0; }
+.img-progress > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+.cand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.cand { border: 1px solid var(--border); border-radius: 6px; padding: 6px; background: var(--bg-input); }
+.cand img, .cmp img, .img-current img { width: 100%; display: block; border-radius: 4px; background: var(--bg-card); }
+.cand.pending { display: flex; align-items: center; justify-content: center; min-height: 120px; color: var(--muted); }
+.cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.img-current { max-width: 420px; }

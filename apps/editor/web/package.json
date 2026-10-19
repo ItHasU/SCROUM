@@ -23,6 +23,7 @@
   "devDependencies": {
     "@scroum/build": "workspace:*",
     "@scroum/editor-server": "workspace:*",
+    "@scroum/images": "workspace:*",
     "@scroum/validate": "workspace:*",
     "@types/cytoscape": "^3.31.0",
     "jsdom": "^30.1.3",

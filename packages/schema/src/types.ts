@@ -484,6 +484,7 @@ export interface Asset {
   model: string | null;
   width: number | null;
   height: number | null;
+  world: Id | null;
   /** Chemin (relatif à `content/`) de l'image retenue si présente, sinon null. */
   file: string | null;
   source: string;
