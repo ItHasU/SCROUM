@@ -24,7 +24,7 @@
  * **suspectés** : rapportés (avertissement) seulement quand un diagnostic
  * identifie une cause précise (objet perdu, objet trop tard / manqué).
  */
-import { forEachCondition, visitConditions, visitSteps, type Condition, type EndingType, type GameData, type Id } from '@scroum/schema';
+import { forEachCondition, visitConditions, visitSteps, type Condition, type DialogueNode, type EndingType, type GameData, type Id } from '@scroum/schema';
 import { describeAction, listActions, start, step, stateKey, type Action, type EngineEvent, type EngineOptions, type Expectation, type GameState, type Scenario, type ScenarioStep } from '@scroum/engine';
 import type { Analyzer, AnalyzerContext } from './types';
 
@@ -895,9 +895,10 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
     uncompletedQuests: Object.keys(game.quests).filter((q) => seenQuests.has(q) && !doneQuests.has(q)),
     collections: game.collections.map((c) => c.id).filter((c) => !seenCollections.has(c)),
   };
+  const routers = routerNodesReached(game, seenDialogues, seenNodes);
   for (const d of Object.values(game.dialogues)) {
     if (!seenDialogues.has(d.id)) continue;
-    for (const id of Object.keys(d.nodes)) if (!seenNodes.has(`${d.id}/${id}`)) unreached.nodes.push({ dialogue: d.id, node: id });
+    for (const id of Object.keys(d.nodes)) if (!seenNodes.has(`${d.id}/${id}`) && !routers.has(`${d.id}/${id}`)) unreached.nodes.push({ dialogue: d.id, node: id });
   }
   for (const s of Object.values(game.scenes)) {
     if (!seenScenes.has(s.id)) continue;
@@ -1076,3 +1077,47 @@ export function createPlayabilityAnalyzer(options: PlayabilityOptions = {}, onRe
 
 /** Analyseur de jouabilité avec les bornes par défaut. */
 export const playabilityAnalyzer: Analyzer = createPlayabilityAnalyzer();
+
+/**
+ * Nœuds « routeurs » (sans répliques, choix ni texte libre : seulement `next`/`next_if`) :
+ * le moteur les traverse sans jamais attendre, donc l'exploration ne les voit pas.
+ * On les déclare atteints s'ils sont la cible d'un nœud vu (ou du `start` d'un dialogue
+ * vu, ou d'un `start_dialogue … node`), de proche en proche.
+ */
+function routerNodesReached(game: GameData, seenDialogues: Set<Id>, seenNodes: Set<string>): Set<string> {
+  const out = new Set<string>();
+  const isRouter = (n: DialogueNode) =>
+    n.lines.length === 0 && n.choices.length === 0 && !n.free_text && !n.on_give && !n.on_show && (n.next !== null || n.next_if.length > 0);
+  const targets = (n: DialogueNode): (Id | null)[] => [
+    n.next,
+    ...n.next_if.map((b) => b.next),
+    ...n.choices.map((c) => c.next),
+    ...Object.values(n.free_text?.intents ?? {}).map((t) => t.next),
+    n.free_text?.fallback.next ?? null,
+    ...[n.on_give, n.on_show].flatMap((r) => (r ? [...Object.values(r.byItem), ...(r.default ? [r.default] : [])].map((t) => t.next) : [])),
+  ];
+  const entries = new Set<string>();
+  visitSteps(game, (st) => {
+    if (st.kind === 'start_dialogue' && st.node) entries.add(`${st.dialogue}/${st.node}`);
+  });
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const d of Object.values(game.dialogues)) {
+      const mark = (id: Id | null) => {
+        const n = id ? d.nodes[id] : undefined;
+        const key = `${d.id}/${id}`;
+        if (!n || !isRouter(n) || out.has(key) || seenNodes.has(key)) return;
+        out.add(key);
+        changed = true;
+      };
+      if (seenDialogues.has(d.id)) mark(d.start);
+      for (const n of Object.values(d.nodes)) {
+        const key = `${d.id}/${n.id}`;
+        if (seenNodes.has(key) || out.has(key)) for (const t of targets(n)) mark(t);
+        if (entries.has(key)) mark(n.id);
+      }
+    }
+  }
+  return out;
+}
