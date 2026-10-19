@@ -101,3 +101,57 @@ describe('changement de statut', () => {
   });
   it('fileOf', () => expect(fileOf(game, { kind: 'item', id: 'meche' })).toBe('items.yaml'));
 });
+
+import { claudeItems } from './claude-stream';
+import { parsePlayerMessage, playUrl } from './protocol';
+import { fieldsFor, setField } from './yamlEdit';
+
+describe('formulaire YAML', () => {
+  const src = 'status: draft # c\nspeaker: x\nstart: a\nnodes:\n  a:\n    lines:\n      - "Bonjour"\n      - { speaker: margot, text: "Salut" }\n    choices:\n      - { label: "Oui", next: b }\n  b:\n    lines: "Fin"\n';
+  it('liste les répliques et choix d’un nœud', () => {
+    const f = fieldsFor(src, { kind: 'dnode', id: 'x', node: 'a' });
+    expect(f.map((x) => x.value)).toEqual(['Bonjour', 'Salut', 'Oui']);
+    expect(fieldsFor(src, { kind: 'dnode', id: 'x', node: 'b' })[0]?.value).toBe('Fin');
+  });
+  it('modifie sans perdre les commentaires', () => {
+    const f = fieldsFor(src, { kind: 'dnode', id: 'x', node: 'a' });
+    const out = setField(src, f[1]!.path, 'Coucou')!;
+    expect(out).toContain('Coucou');
+    expect(out).toContain('# c');
+    expect(fieldsFor(out, { kind: 'dnode', id: 'x', node: 'a' })[1]?.value).toBe('Coucou');
+  });
+  it('champs d’un hotspot de la démo', async () => {
+    const text = (await readContentDir(demo)).get('scenes/port.yaml') as string;
+    const f = fieldsFor(text, { kind: 'hotspot', id: 'rochers', parent: 'port' });
+    expect(f[0]?.value).toBe('Rochers');
+    expect(f.some((x) => x.label.includes('look'))).toBe(true);
+  });
+});
+
+describe('protocole playtest', () => {
+  it('accepte un message state et normalise', () => {
+    const m = parsePlayerMessage({ scroum: 'state', state: { scene: 'port', flags: ['a'], vars: { x: 1 }, counters: {}, inventory: { meche: 1 }, dialogue: { id: 'loic', node: 'menu', pending_scene: null } }, lastEvents: [{ type: 'say' }], intent: { intent: 'saluer', confidence: 0.8 } });
+    expect(m?.scroum).toBe('state');
+    if (m?.scroum === 'state') {
+      expect(m.state.dialogue).toEqual({ id: 'loic', node: 'menu' });
+      expect(m.intent?.confidence).toBe(0.8);
+    }
+  });
+  it('rejette le reste', () => {
+    expect(parsePlayerMessage({ foo: 1 })).toBeNull();
+    expect(parsePlayerMessage('x')).toBeNull();
+    expect(parsePlayerMessage({ scroum: 'state' })).toBeNull();
+  });
+  it('construit l’URL', () => expect(playUrl('port')).toBe('/play/?source=%2Fapi&scene=port'));
+});
+
+describe('flux Claude', () => {
+  it('extrait texte, outils et résultat', () => {
+    expect(claudeItems({ type: 'assistant', message: { content: [{ type: 'text', text: 'Je modifie.' }, { type: 'tool_use', id: 't1', name: 'Edit', input: { file_path: '/a/b.yaml' } }] } })).toEqual([
+      { kind: 'text', text: 'Je modifie.' },
+      { kind: 'tool', id: 't1', name: 'Edit', summary: '/a/b.yaml' },
+    ]);
+    expect(claudeItems({ type: 'result', result: 'ok', is_error: false })[0]?.kind).toBe('result');
+    expect(claudeItems({ type: 'rate_limit_event' })).toEqual([]);
+  });
+});
