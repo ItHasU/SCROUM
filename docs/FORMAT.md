@@ -504,7 +504,16 @@ take:
   suivantes s'exécutent encore (dans le contexte de la scène courante). S'il y en a
   plusieurs, la dernière l'emporte. Un `start_dialogue` différé s'ouvre après
   l'éventuel changement de scène.
-- `end_game` **interrompt immédiatement** le script et termine la partie.
+- `end_game` **interrompt immédiatement** le script et termine la partie (le dialogue
+  en cours est fermé, aucun changement de scène en attente n'a lieu).
+- **Ordre des effets différés.** Après le script d'une action (verbe, `use`, sortie,
+  objet), le moteur change de scène (en exécutant le `on_enter` de la cible, qui peut
+  lui-même changer de scène ou ouvrir un dialogue), puis ouvre le dialogue demandé —
+  sauf si le `on_enter` en a déjà ouvert un. Pour une **sortie**, sa cible `to`
+  l'emporte sur un `goto_scene` de son `do`.
+- Un enchaînement sans fin (scènes dont le `on_enter` se renvoient l'une à l'autre,
+  nœuds sans répliques en boucle) est interrompu au-delà de 200 transitions : l'action
+  est annulée avec une erreur `loop_limit`.
 - Les effets ne modifient jamais rien en dehors de l'état de jeu sérialisé ; le LLM
   ne déclenche jamais d'effet.
 
@@ -640,11 +649,20 @@ nodes:
 
 **Déroulement d'un nœud.** Le moteur affiche les `lines`, exécute `effects`, puis :
 - s'il y a des choix visibles ou un `free_text` → il attend le joueur ;
-- sinon, s'il y a `next` → il passe au nœud suivant ;
-- sinon → **fin du dialogue** (retour à la scène).
+- sinon, s'il y a `next` → il passe au nœud suivant : si le nœud a des répliques (ou
+  `on_give`/`on_show`), le moteur attend d'abord que le joueur **continue** (« Suite ») ;
+  un nœud sans répliques (aiguillage, effets seuls) enchaîne sans attendre ;
+- sinon → **fin du dialogue** (retour à la scène), juste après les répliques.
 
 Si un effet de nœud fait `goto_scene`, le changement de scène a lieu à la fin du
-dialogue ; `end_game` termine la partie immédiatement.
+dialogue ; `end_game` termine la partie immédiatement. Un `start_dialogue` dans un
+effet de nœud, de choix ou de transition **saute** vers ce dialogue (le `next` est
+ignoré) ; un changement de scène en attente est conservé.
+
+**Quitter un dialogue.** Le joueur ne peut quitter un dialogue que par un choix sans
+`next`, ou sur un nœud à `free_text` **sans aucun choix visible** (bouton « Quitter »
+fourni par l'UI, pour ne jamais rester bloqué face au texte libre). Prévoir un choix
+« Au revoir » dans les autres cas.
 
 ### Transitions
 
@@ -673,7 +691,10 @@ Un choix suit la même règle : `effects` puis `next` (absent = fin du dialogue)
    - `give_item` / `show_item` avec un `item` → comme `on_give` / `on_show` ci-dessous ;
    - sinon → `fallback`.
 3. Sans `fallback`, un texte non compris laisse le joueur sur le même nœud (les
-   répliques sont réaffichées).
+   répliques sont réaffichées et ses `effects` rejoués).
+4. Seuil global par défaut : **0.5** (option `threshold` du moteur). Le repli par
+   mots-clés (`KeywordBackend`) donne 0.75 pour un mot-clé reconnu (+0.1 par mot-clé
+   supplémentaire, max 0.95), et jusqu'à 1 par similarité avec les `examples`.
 
 Les intentions `give_item` et `show_item` sont **réservées** : ne pas les déclarer dans
 `intents.yaml` ni dans `free_text.intents` (utiliser `on_give` / `on_show`).
@@ -690,7 +711,8 @@ l'inventaire et choisir « Donner » (resp. « Montrer ») :
 
 **Donner ne retire pas l'objet automatiquement** : écrire `{ take_item: … }` dans les
 effets de la réaction (cela permet aussi les échanges : `take_item` + `give_item`).
-Montrer ne retire jamais rien.
+Montrer ne retire jamais rien. « Donner » / « Montrer » est possible dès que le nœud
+courant a `on_give` / `on_show`, y compris sur un nœud qui attend « Suite ».
 
 ---
 
@@ -747,7 +769,10 @@ meche:
 
 **Combiner** : sélectionner un objet puis toucher un autre objet de l'inventaire. Si une
 combinaison existe (déclarée sur l'un ou l'autre) : retrait des objets de `consume`,
-ajout de `result` (une unité), puis `effects`. Sinon : réplique de refus.
+ajout de `result` (une unité), puis `effects`. Sinon : réplique de refus. Combiner un
+objet avec lui-même (`with: <lui-même>`) demande d'en posséder deux exemplaires.
+Examiner (`look`) et combiner sont possibles aussi pendant un dialogue ; un
+`goto_scene` y est alors différé à la fin du dialogue.
 
 ### Obtenir un objet
 

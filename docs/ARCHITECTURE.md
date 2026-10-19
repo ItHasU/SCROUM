@@ -29,7 +29,7 @@ reste `SCROUM_SPEC.md` ; le format de contenu est décrit dans `docs/FORMAT.md`.
 | `@scroum/validate` | Validation niveau 1 (schéma, règles, références, obtenabilité) ; `@scroum/validate/node` pour la lecture disque ; point d'extension `Analyzer` | M0 ✔ (jouabilité : M1b) |
 | `@scroum/build` | Résolution d'un dépôt de jeu (`resolveProject`) et `buildProject` (validation → images sharp/webp → zip) | M2 ✔ |
 | `@scroum/cli` | Binaire `scroum` : `validate`, `build`, `edit` ✔ ; `gen-image` (message « non implémenté », M5) | M2 ✔ |
-| `@scroum/engine` | Machine à états pure | squelette (M1) |
+| `@scroum/engine` | Machine à états pure : `start`/`step`/`listActions`, vues, `KeywordBackend`, harnais de scénarios | M1 ✔ (logique) |
 | `@scroum/ui` | Rendu DOM mobile, backends LLM navigateur | squelette (M1) |
 | `@scroum/player` (`apps/player`) | Page statique GitHub Pages | squelette (M1) |
 | `@scroum/editor-server` (`apps/editor/server`) | Serveur local de l'éditeur (voir ci-dessous) | M2 ✔ |
@@ -76,6 +76,16 @@ Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` 
   et applique seuil / fallback / vérification d'objet.
 - `KeywordBackend` vit dans `@scroum/engine` (pur, testable) ; `WllamaBackend` et
   `RemoteBackend` dans `@scroum/ui`.
+- `listActions(game, state, { exhaustive? })` est déterministe ; une action
+  `intent` par intention autorisée (confiance 1) plus le repli `{ intent: null,
+  confidence: 0 }`. `stateKey(state)` = JSON à clés triées (listes de l'état triées,
+  variables nulles et quantités nulles omises), pour la déduplication en BFS.
+- Harnais de scénarios (`runScenario(game, scenario)`) : actions en forme courte
+  (`take caisse`, `use cle on porte`, `choose "Au revoir"`…), texte libre classé par un
+  `LlmBackend`, attentes sur l'état et les événements. Scénarios de la démo :
+  `packages/engine/test/scenarios/demo.ts`.
+- Les tests du moteur lisent les exemples via `@scroum/schema` (`loadContent`) et
+  `node:fs`, sans dépendre de `@scroum/validate` (qui dépendra du moteur).
 - La sémantique d'exécution (ordre des étapes, différé de `goto_scene`/`start_dialogue`,
   `consumable`, résolution de `use`, `on_give`/`on_show`, texte libre) est **spécifiée
   dans `docs/FORMAT.md`** : le moteur doit s'y conformer.
