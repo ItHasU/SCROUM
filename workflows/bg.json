@@ -11,7 +11,8 @@
       "cfg": 2.5,
       "sampler": "euler",
       "scheduler": "simple",
-      "shift": 3.1
+      "shift": 3.1,
+      "clip_type": "qwen_image"
     },
     "references": 0
   },
@@ -26,7 +27,7 @@
     "class_type": "CLIPLoader",
     "inputs": {
       "clip_name": "{{clip}}",
-      "type": "qwen_image",
+      "type": "{{clip_type}}",
       "device": "default"
     }
   },

@@ -18,7 +18,7 @@ export interface ComfyUIOptions {
   /** URL de base, ex. `http://192.168.1.20:8188`. */
   url: string;
   /** Valeurs par défaut de `{{unet}}`, `{{clip}}`, `{{vae}}`, `{{checkpoint}}`… */
-  models?: Record<string, string>;
+  models?: Record<string, string | number>;
   /** Dossier `workflows/` du jeu (cherché en premier). */
   gameWorkflowsDir?: string | null;
   /** Délai maximal par candidat (ms). Défaut 10 min. */

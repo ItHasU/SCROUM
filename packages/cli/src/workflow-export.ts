@@ -22,7 +22,7 @@ export const EXAMPLE_PARAMS: Record<string, unknown> = {
 };
 
 /** Remplace chaque placeholder par la valeur du projet, du workflow ou d'exemple (les références → example.png). */
-export function exportGraph(graph: WorkflowJson, defaults: Record<string, unknown>, models: Record<string, string>, name: string): WorkflowJson {
+export function exportGraph(graph: WorkflowJson, defaults: Record<string, unknown>, models: Record<string, string | number>, name: string): WorkflowJson {
   const params: Record<string, unknown> = { ...EXAMPLE_PARAMS, ...defaults, ...models };
   for (const p of placeholders(graph)) {
     if (!(p in params)) params[p] = /^ref_image_\d+$/.test(p) ? 'example.png' : p;
