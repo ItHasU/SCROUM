@@ -21,8 +21,18 @@ c'est l'humain qui retient et valide dans l'Atelier d'images.
    texte → image, un modèle Qwen Image (ou Z-Image : mêmes noeuds, ajuster `steps`/`cfg`/`shift`). Comme `{{unet}}` est un seul
    paramètre, utiliser un `comfyui.models` différent par jeu, ou copier le workflow dans `workflows/` du jeu avec un autre nom
    de paramètre (ex. `{{unet_edit}}`).
-3. `remove_bg` exige le noeud personnalisé **ComfyUI-RMBG** (classe `BiRefNetRMBG`, https://github.com/1038lab/ComfyUI-RMBG) ;
-   le modèle BiRefNet est téléchargé par le noeud au premier usage. Sans lui, ComfyUI répond « noeud inconnu » et SCROUM l'affiche.
+3. **Édition et détourage** (`char_edit`, `transform`, `remove_bg`) : **Qwen Image 2.1** (modèle unifié génération + édition +
+   transparence, noeuds natifs ComfyUI ≥ 0.37, aucun noeud personnalisé). Paramètres `edit_*` distincts, avec ces valeurs par défaut :
+
+   | Fichier (dossier) | Lien |
+   |---|---|
+   | `qwen_image_2.1_int8_convrot.safetensors` (diffusion_models, 6,8 Go) | https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors |
+   | `qwen3vl_8b_int8_convrot.safetensors` (text_encoders, 8,7 Go) | https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors |
+   | `qwen_image_2.1_vae_bf16.safetensors` (vae, 0,6 Go) | https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors |
+   | *(option, ~3× plus rapide)* `qwen_image_2.1_turbo_int8_convrot.safetensors` (diffusion_models, 6,8 Go) | https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_turbo_int8_convrot.safetensors |
+
+   Avec le Turbo : `edit_unet: qwen_image_2.1_turbo_int8_convrot.safetensors` et `edit_steps: 8` dans `comfyui.models`.
+   Mesuré sur RTX 3060 12 Go : détourage 1376×768 en ~3 min 30 à 25 pas (modèle non Turbo).
 
 ## 2. Configurer SCROUM
 
@@ -78,7 +88,7 @@ Pour ouvrir un workflow directement dans ComfyUI (glisser-déposer) : fichiers p
 
 Format **API** de ComfyUI (« Save (API Format) », nécessite *Dev mode options* activées), avec des `{{placeholders}}` à la place des valeurs.
 Recherche : `workflows/<nom>.json` du jeu (clé `workflows` de `scroum.project.yaml`), puis `workflows/` de SCROUM. Génériques : `bg`, `char_sheet`,
-`item_icon` (texte → image), `char_edit`, `transform` (Qwen Image Edit, 1 référence), `remove_bg` (BiRefNet).
+`item_icon` (texte → image), `char_edit`, `transform`, `remove_bg` (Qwen Image 2.1, 1 référence).
 
 | Placeholder | Type | Source |
 |---|---|---|
@@ -110,11 +120,11 @@ Un placeholder sans valeur est une erreur explicite. Une clé de premier niveau 
 | `ComfyUI injoignable à …` | mauvaise `comfyui.url`, ComfyUI arrêté ou lancé sans `--listen` |
 | `valeur manquante pour {{unet}}` | `comfyui.models` non renseigné |
 | `valeur inconnue de ComfyUI pour « unet_name »` | fichier modèle absent ; la réponse liste les valeurs disponibles |
-| `noeud ComfyUI inconnu` | noeud personnalisé non installé (ex. BiRefNet pour `remove_bg`) |
+| `noeud ComfyUI inconnu` | ComfyUI trop ancien (Qwen Image 2.1 demande ≥ 0.37) ou noeud personnalisé d'un workflow de jeu absent |
 | `délai dépassé` | augmenter `comfyui.timeout_s` ; le premier candidat charge les modèles |
 
 ## 6. Limites connues
 
-Les workflows génériques n'ont été validés que contre un faux ComfyUI (tests) : les noms de noeuds et de paramètres (Qwen Image, `TextEncodeQwenImageEdit`,
-`CFGNorm`, `BiRefNetRMBG`) suivent la documentation de ComfyUI mais doivent être confirmés sur une instance réelle (export « Save (API) » à comparer).
+Validé sur une instance réelle (ComfyUI 0.37, RTX 3060) : `bg` avec Z-Image Turbo, `remove_bg` avec Qwen Image 2.1. `char_sheet`,
+`item_icon`, `char_edit` et `transform` partagent les mêmes noeuds mais n'ont pas encore tourné en réel.
 Une seule génération à la fois par éditeur ; les candidats sont des PNG ; une référence est un asset *retenu* ou un candidat de l'asset courant.
