@@ -1,43 +1,122 @@
 {
   "_scroum": {
-    "description": "Détourage de sprite (fond transparent). Nécessite le noeud personnalisé ComfyUI-RMBG (BiRefNetRMBG).",
-    "custom_nodes": [
-      "ComfyUI-RMBG (https://github.com/1038lab/ComfyUI-RMBG) : BiRefNetRMBG"
-    ],
+    "description": "Détourage : supprime le fond et produit un PNG transparent (RGBA). Qwen Image 2.1 (édition unifiée, natif ComfyUI ≥ 0.37). Paramètres edit_* distincts de ceux du texte → image (unet, steps…) pour pouvoir combiner Z-Image Turbo et Qwen Image 2.1 ; avec le modèle Turbo : edit_unet qwen_image_2.1_turbo_int8_convrot.safetensors, edit_steps 8.",
     "defaults": {
-      "rmbg_model": "BiRefNet-general"
+      "edit_unet": "qwen_image_2.1_int8_convrot.safetensors",
+      "edit_clip": "qwen3vl_8b_int8_convrot.safetensors",
+      "edit_vae": "qwen_image_2.1_vae_bf16.safetensors",
+      "edit_steps": 25,
+      "edit_cfg": 1,
+      "edit_resolution": 1024
     },
     "references": 1
   },
   "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "{{edit_unet}}",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "{{edit_clip}}",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "{{edit_vae}}"
+    }
+  },
+  "4": {
     "class_type": "LoadImage",
     "inputs": {
       "image": "{{ref_image_1}}"
     }
   },
-  "2": {
-    "class_type": "BiRefNetRMBG",
+  "5": {
+    "class_type": "QwenImage21Cache",
     "inputs": {
-      "image": [
+      "model": [
         "1",
         0
       ],
-      "model": "{{rmbg_model}}",
-      "mask_blur": 0,
-      "mask_offset": 0,
-      "invert_output": false,
-      "refine_foreground": false,
-      "background": "Alpha"
+      "device": "auto",
+      "dtype": "default"
     }
   },
-  "3": {
-    "class_type": "SaveImage",
+  "6": {
+    "class_type": "TextEncodeQwenImage21",
     "inputs": {
-      "images": [
+      "clip": [
         "2",
         0
       ],
-      "filename_prefix": "scroum/remove_bg"
+      "vae": [
+        "3",
+        0
+      ],
+      "images.image_1": [
+        "4",
+        0
+      ],
+      "prompt": "Remove the background, and output a PNG image",
+      "negative_prompt": "",
+      "resolution": "{{edit_resolution}}"
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "6",
+        1
+      ],
+      "latent_image": [
+        "6",
+        2
+      ],
+      "seed": "{{seed}}",
+      "steps": "{{edit_steps}}",
+      "cfg": "{{edit_cfg}}",
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ],
+      "filename_prefix": "scroum"
     }
   }
 }

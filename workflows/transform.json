@@ -1,40 +1,35 @@
 {
   "_scroum": {
-    "description": "Même cadrage et même pose que la référence, sujet transformé selon l'instruction (Qwen Image Edit).",
-    "requires": [
-      "unet",
-      "clip",
-      "vae"
-    ],
+    "description": "Même cadrage et même pose que la référence, sujet transformé selon l'instruction (révélations). Qwen Image 2.1 (édition unifiée, natif ComfyUI ≥ 0.37). Paramètres edit_* distincts de ceux du texte → image (unet, steps…) pour pouvoir combiner Z-Image Turbo et Qwen Image 2.1 ; avec le modèle Turbo : edit_unet qwen_image_2.1_turbo_int8_convrot.safetensors, edit_steps 8.",
     "defaults": {
-      "steps": 20,
-      "cfg": 2.5,
-      "sampler": "euler",
-      "scheduler": "simple",
-      "shift": 3.1,
-      "clip_type": "qwen_image"
+      "edit_unet": "qwen_image_2.1_int8_convrot.safetensors",
+      "edit_clip": "qwen3vl_8b_int8_convrot.safetensors",
+      "edit_vae": "qwen_image_2.1_vae_bf16.safetensors",
+      "edit_steps": 25,
+      "edit_cfg": 1,
+      "edit_resolution": 1024
     },
     "references": 1
   },
   "1": {
     "class_type": "UNETLoader",
     "inputs": {
-      "unet_name": "{{unet}}",
+      "unet_name": "{{edit_unet}}",
       "weight_dtype": "default"
     }
   },
   "2": {
     "class_type": "CLIPLoader",
     "inputs": {
-      "clip_name": "{{clip}}",
-      "type": "{{clip_type}}",
+      "clip_name": "{{edit_clip}}",
+      "type": "qwen_image",
       "device": "default"
     }
   },
   "3": {
     "class_type": "VAELoader",
     "inputs": {
-      "vae_name": "{{vae}}"
+      "vae_name": "{{edit_vae}}"
     }
   },
   "4": {
@@ -44,57 +39,68 @@
     }
   },
   "5": {
-    "class_type": "ImageScaleToTotalPixels",
+    "class_type": "QwenImage21Cache",
     "inputs": {
-      "image": [
-        "4",
+      "model": [
+        "1",
         0
       ],
-      "upscale_method": "lanczos",
-      "megapixels": 1.0
+      "device": "auto",
+      "dtype": "default"
     }
   },
   "6": {
-    "class_type": "TextEncodeQwenImageEdit",
+    "class_type": "TextEncodeQwenImage21",
     "inputs": {
       "clip": [
         "2",
         0
       ],
-      "prompt": "Keep exactly the same framing, camera angle, composition and pose as the reference image. Change only the following: {{prompt}}",
       "vae": [
         "3",
         0
       ],
-      "image": [
-        "5",
+      "images.image_1": [
+        "4",
         0
-      ]
+      ],
+      "prompt": "Keep exactly the same framing, camera angle, pose and composition as the input image. {{prompt}}",
+      "negative_prompt": "",
+      "resolution": "{{edit_resolution}}"
     }
   },
   "7": {
-    "class_type": "TextEncodeQwenImageEdit",
+    "class_type": "KSampler",
     "inputs": {
-      "clip": [
-        "2",
-        0
-      ],
-      "prompt": "{{negative}}",
-      "vae": [
-        "3",
-        0
-      ],
-      "image": [
+      "model": [
         "5",
         0
-      ]
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "6",
+        1
+      ],
+      "latent_image": [
+        "6",
+        2
+      ],
+      "seed": "{{seed}}",
+      "steps": "{{edit_steps}}",
+      "cfg": "{{edit_cfg}}",
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
     }
   },
   "8": {
-    "class_type": "VAEEncode",
+    "class_type": "VAEDecode",
     "inputs": {
-      "pixels": [
-        "5",
+      "samples": [
+        "7",
         0
       ],
       "vae": [
@@ -104,73 +110,13 @@
     }
   },
   "9": {
-    "class_type": "ModelSamplingAuraFlow",
-    "inputs": {
-      "model": [
-        "1",
-        0
-      ],
-      "shift": "{{shift}}"
-    }
-  },
-  "10": {
-    "class_type": "CFGNorm",
-    "inputs": {
-      "model": [
-        "9",
-        0
-      ],
-      "strength": 1.0
-    }
-  },
-  "11": {
-    "class_type": "KSampler",
-    "inputs": {
-      "model": [
-        "10",
-        0
-      ],
-      "positive": [
-        "6",
-        0
-      ],
-      "negative": [
-        "7",
-        0
-      ],
-      "latent_image": [
-        "8",
-        0
-      ],
-      "seed": "{{seed}}",
-      "steps": "{{steps}}",
-      "cfg": "{{cfg}}",
-      "sampler_name": "{{sampler}}",
-      "scheduler": "{{scheduler}}",
-      "denoise": 1
-    }
-  },
-  "12": {
-    "class_type": "VAEDecode",
-    "inputs": {
-      "samples": [
-        "11",
-        0
-      ],
-      "vae": [
-        "3",
-        0
-      ]
-    }
-  },
-  "13": {
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "12",
+        "8",
         0
       ],
-      "filename_prefix": "scroum/transform"
+      "filename_prefix": "scroum"
     }
   }
 }
