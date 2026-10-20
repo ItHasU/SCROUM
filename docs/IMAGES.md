@@ -42,6 +42,21 @@ comfyui:
 « ComfyUI : … (connecté) » en haut de l'Atelier (`GET /api/comfyui`). Une valeur de modèle inconnue de ComfyUI est signalée avec la
 liste des valeurs disponibles (`unknown_model`).
 
+### Exemple testé : Z-Image Turbo (RTX 3060 12 Go, ~15 s par décor 1280×720)
+
+```yaml
+comfyui:
+  url: http://<ip>:8188
+  models:                  # chaînes ou nombres : surchargent les défauts du workflow
+    unet: z_image_turbo_nvfp4.safetensors
+    clip: qwen_3_4b.safetensors
+    clip_type: lumina2     # type du CLIPLoader (qwen_image par défaut)
+    vae: ae.safetensors
+    steps: 8
+    cfg: 1                 # avec cfg 1, le négatif n'a aucun effet : décrire ce qu'on veut dans le prompt
+    shift: 3
+```
+
 ## 3. Utilisation
 
 - **Atelier d'images** (onglet « Images ») : choisir un asset de `assets.yaml`, régler prompt, workflow, références (ids d'assets

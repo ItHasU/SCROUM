@@ -41,8 +41,8 @@ export const ProjectConfigSchema = z.strictObject({
   /** Génération d'images : valeurs par défaut des paramètres de workflow (modèles) ; l'URL est dans scroum.local.yaml. */
   comfyui: z
     .strictObject({
-      /** Valeurs de `{{unet}}`, `{{clip}}`, `{{vae}}`, `{{checkpoint}}`… (surchargées par scroum.local.yaml). */
-      models: z.record(z.string(), z.string()).default({}),
+      /** Valeurs de `{{unet}}`, `{{clip}}`, `{{vae}}`, `{{clip_type}}`, `{{steps}}`, `{{cfg}}`… (surchargées par scroum.local.yaml). */
+      models: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
       timeout_s: z.number().positive().optional(),
     })
     .optional(),
@@ -54,7 +54,7 @@ export const LocalConfigSchema = z.looseObject({
   comfyui: z
     .looseObject({
       url: z.string().default('http://127.0.0.1:8188'),
-      models: z.record(z.string(), z.string()).optional(),
+      models: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
       timeout_s: z.number().positive().optional(),
     })
     .optional(),

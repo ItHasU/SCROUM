@@ -47,6 +47,8 @@ describe('style.md', () => {
     const g = parseStyle(STYLE);
     expect(buildPrompt(g, 'royaumes', 'une taverne', 'flou')).toEqual({ prompt: '16-bit pixel art, une taverne, no text', negative: 'text, watermark, nsfw, photorealistic, flou' });
     expect(buildPrompt(g, null, 'x').prompt).toBe('x');
+    // préfixe déjà présent dans le prompt de l'asset : pas de doublon
+    expect(buildPrompt(g, 'royaumes', '16-bit pixel art, une taverne').prompt).toBe('16-bit pixel art, une taverne, no text');
     expect(buildPrompt(null, 'royaumes', 'x')).toEqual({ prompt: 'x', negative: '' });
   });
   it('lit le vrai style.md de Boris si présent', () => {

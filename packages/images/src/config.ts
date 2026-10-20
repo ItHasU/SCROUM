@@ -8,7 +8,7 @@ import type { ImageProvider } from './types';
 
 export interface ImageConfig {
   url: string;
-  models: Record<string, string>;
+  models: Record<string, string | number>;
   timeoutMs: number | undefined;
   gameWorkflowsDir: string;
 }
@@ -23,9 +23,9 @@ export async function loadImageConfig(root: string, project: ProjectConfig | nul
   } catch {
     /* pas de scroum.local.yaml */
   }
-  const models: Record<string, string> = { ...(project?.comfyui?.models ?? {}) };
+  const models: Record<string, string | number> = { ...(project?.comfyui?.models ?? {}) };
   const lm = local?.comfyui?.models;
-  if (lm && typeof lm === 'object') for (const [k, v] of Object.entries(lm)) if (typeof v === 'string') models[k] = v;
+  if (lm && typeof lm === 'object') for (const [k, v] of Object.entries(lm)) if (typeof v === 'string' || typeof v === 'number') models[k] = v;
   const t = typeof local?.comfyui?.timeout_s === 'number' ? local.comfyui.timeout_s : project?.comfyui?.timeout_s;
   return {
     url: typeof local?.comfyui?.url === 'string' && local.comfyui.url ? local.comfyui.url : DEFAULT_COMFY_URL,

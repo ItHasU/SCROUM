@@ -97,11 +97,17 @@ export function parseStyle(md: string): StyleGuide {
 const clean = (s: string): string => s.trim().replace(/^[,\s]+|[,\s]+$/g, '');
 const joinCsv = (...parts: (string | undefined)[]): string => parts.map((p) => clean(p ?? '')).filter(Boolean).join(', ');
 
+/** Partie de style à ajouter, sauf si le prompt de l'asset la contient déjà (prompts écrits avec le préfixe inclus). */
+const unlessIncluded = (part: string | undefined, prompt: string): string | undefined => {
+  const c = clean(part ?? '');
+  return c && prompt.toLowerCase().includes(c.toLowerCase()) ? undefined : part;
+};
+
 /** Prompt complet = préfixe du monde + prompt de l'asset + suffixe ; négatif = commun + monde + négatif de l'asset. */
 export function buildPrompt(guide: StyleGuide | null, world: string | null, prompt: string, negative?: string | null): { prompt: string; negative: string } {
   const w = (world && guide?.worlds[world]) || null;
   return {
-    prompt: joinCsv(w?.prefix, prompt, w?.suffix),
+    prompt: joinCsv(unlessIncluded(w?.prefix, prompt), prompt, unlessIncluded(w?.suffix, prompt)),
     negative: joinCsv(guide?.negative, w?.negative, negative ?? ''),
   };
 }
