@@ -58,6 +58,9 @@ liste des valeurs disponibles (`unknown_model`).
 
 ## 4. Workflows
 
+Pour ouvrir un workflow directement dans ComfyUI (glisser-déposer) : fichiers prêts dans `workflows/comfyui/`, ou
+`pnpm scroum workflow-export <nom> --out <fichier>.json` (modèles de `scroum.local.yaml`, valeurs d'exemple sinon).
+
 Format **API** de ComfyUI (« Save (API Format) », nécessite *Dev mode options* activées), avec des `{{placeholders}}` à la place des valeurs.
 Recherche : `workflows/<nom>.json` du jeu (clé `workflows` de `scroum.project.yaml`), puis `workflows/` de SCROUM. Génériques : `bg`, `char_sheet`,
 `item_icon` (texte → image), `char_edit`, `transform` (Qwen Image Edit, 1 référence), `remove_bg` (BiRefNet).
