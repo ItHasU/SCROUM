@@ -15,6 +15,7 @@ import { buildProject } from '@scroum/build';
 import { exportPaths, type PlayabilityOptions } from '@scroum/validate';
 import { validateDir } from '@scroum/validate/node';
 import { genImageCommand } from './gen-image';
+import { workflowExportCommand } from './workflow-export';
 import { ProjectError, resolveProject, type ResolvedProject } from './project';
 import { formatReport, makeStyle } from './report';
 
@@ -62,13 +63,17 @@ Usage :
       Dépose N candidats dans content/assets/_candidates/<id>/ (jamais validés : le statut
       reste à l'humain). Passe par l'éditeur s'il tourne (--url, sinon editor.port), sinon
       génère directement via ComfyUI (comfyui.url de scroum.local.yaml).
+  scroum workflow-export <nom> [--out fichier.json] [chemin]
+      Exporte un workflow (bg, char_sheet, char_edit, transform, remove_bg, item_icon…) en JSON
+      ouvrable directement dans ComfyUI (glisser-déposer), placeholders remplacés par les modèles
+      du projet (scroum.local.yaml) ou des valeurs d'exemple.
   scroum --help | --version
 
 Code de retour : 0 si tout va bien, 1 si erreurs de contenu, 2 si usage incorrect.`;
 
 
 /** Options à valeur (`--port 5000` ou `--port=5000`) ; les autres `--x` sont des drapeaux. */
-const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt', 'workflow', 'seed', 'variant-of', 'url', 'path-out', 'max-states', 'max-depth', 'time-limit']);
+const VALUE_OPTS = new Set(['port', 'host', 'asset', 'n', 'prompt', 'workflow', 'seed', 'variant-of', 'url', 'path-out', 'max-states', 'max-depth', 'time-limit', 'out']);
 
 function parseArgs(argv: string[]): { positional: string[]; flags: Set<string>; values: Map<string, string> } {
   const positional: string[] = [];
@@ -255,6 +260,16 @@ export async function main(argv: string[], io: Io = defaultIo()): Promise<number
       }
       const project = projectOrReport(args[0], io, 'gen-image');
       return project ? genImageCommand(project, flags, values, io) : 1;
+    }
+    case 'workflow-export': {
+      // Le dépôt de jeu est facultatif : il fournit les noms de modèles et ses propres workflows.
+      let project: ResolvedProject | null = null;
+      try {
+        project = resolveProject(resolve(io.cwd, args[1] ?? '.'));
+      } catch (e) {
+        if (!(e instanceof ProjectError)) throw e;
+      }
+      return workflowExportCommand(project, args, values, io);
     }
     default:
       io.err(`commande inconnue : ${command}\n\n${HELP}`);
