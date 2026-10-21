@@ -27,7 +27,7 @@ import {
 import { ID_PATTERN } from './normalize';
 import type { ContentError, Ending, GameData, Intent, Scene, Script } from './types';
 import { RESERVED_INTENTS } from './types';
-import { FORMAT_VERSION } from './version';
+import { FORMAT_VERSION, migrate } from './version';
 import { forEachStep } from './visit';
 
 /** Fichiers du dossier `content/` : chemin relatif (séparateur `/`) → contenu. Le contenu des images n'est pas lu. */
@@ -311,19 +311,30 @@ export function loadContent(files: ContentFiles): LoadResult {
   const gameParsed = parseYaml(gameFile, textOf(gameText), errors);
   if (!gameParsed) return { game: null, errors };
   const fv = (gameParsed.data as Record<string, unknown> | null)?.formatVersion;
-  if (typeof fv === 'number' && fv !== FORMAT_VERSION) {
+  if (typeof fv === 'number' && fv > FORMAT_VERSION) {
     errors.push({
       severity: 'error',
       code: 'format_version',
       file: gameFile,
       path: 'formatVersion',
       ...(lineOf(gameParsed, ['formatVersion']) !== undefined ? { line: lineOf(gameParsed, ['formatVersion'])! } : {}),
-      message:
-        fv > FORMAT_VERSION
-          ? `format ${fv} plus récent que ce SCROUM (format ${FORMAT_VERSION}) : mettre à jour SCROUM`
-          : `format ${fv} ancien : migrer le contenu vers le format ${FORMAT_VERSION}`,
+      message: `format ${fv} plus récent que ce SCROUM (format ${FORMAT_VERSION}) : mettre à jour SCROUM`,
     });
     return { game: null, errors };
+  }
+  if (typeof fv === 'number' && fv < FORMAT_VERSION) {
+    try {
+      gameParsed.data = migrate(gameParsed.data);
+    } catch (e) {
+      errors.push({
+        severity: 'error',
+        code: 'format_version',
+        file: gameFile,
+        path: 'formatVersion',
+        message: `format ${fv} ancien : ${(e as Error).message}`,
+      });
+      return { game: null, errors };
+    }
   }
   const gameRes = parseWithEndings(() => GameFileSchema.safeParse(gameParsed.data ?? {}, { error: frLocale.localeError }));
   if (!gameRes.result.success) {

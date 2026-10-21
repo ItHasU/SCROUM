@@ -77,6 +77,11 @@ describe('readGameZip', () => {
     expect(() => readGameZip(bytes)).toThrow(FormatVersionError);
     expect(() => readGameZip(bytes)).toThrow(/mettre à jour/);
   });
+  it('un zip au format 1 est migré ; le zip produit porte le format courant (un lecteur v1 le refusera)', () => {
+    const old = readGameZip(zipOf({ formatVersion: 1, title: 'x', version: '1', buildDate: '', images: [] }, { formatVersion: 1, meta: { formatVersion: 1 } }));
+    expect(old.manifest.formatVersion).toBe(FORMAT_VERSION);
+    expect(FORMAT_VERSION).toBeGreaterThanOrEqual(2);
+  });
   it('refuse un manifest sans formatVersion, un zip illisible et un zip incomplet', () => {
     expect(() => readGameZip(zipOf({ title: 'x' }))).toThrow(FormatVersionError);
     expect(() => readGameZip(new Uint8Array([1, 2, 3]))).toThrow(GameZipError);

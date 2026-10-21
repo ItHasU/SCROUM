@@ -251,6 +251,12 @@ describe('loadContent', () => {
     expect(future.errors[0]!.code).toBe('format_version');
   });
 
+  it('un game.yaml en format 1 est migré en mémoire vers le format courant', () => {
+    const g = loadContent(base()).game;
+    expect(g?.formatVersion).toBe(FORMAT_VERSION);
+    expect(g?.meta.formatVersion).toBe(FORMAT_VERSION);
+  });
+
   it('fin déclarée deux fois différemment', () => {
     const files = base();
     files['dialogues/chat.yaml'] = DIALOGUE.replace('ending: griffe, type: game_over', 'ending: victoire, type: game_over');
@@ -281,14 +287,18 @@ describe('utilitaires', () => {
   });
 
   it('migrate', () => {
-    expect(migrate({ formatVersion: 1, a: 1 })).toEqual({ formatVersion: 1, a: 1 });
-    expect(migrate({ meta: { formatVersion: 1 } })).toEqual({ meta: { formatVersion: 1 } });
-    expect(() => migrate({ formatVersion: 2 })).toThrow(FormatVersionError);
+    expect(migrate({ formatVersion: 2, a: 1 })).toEqual({ formatVersion: 2, a: 1 });
+    expect(migrate({ meta: { formatVersion: 2 } })).toEqual({ meta: { formatVersion: 2 } });
+    // v1 → v2 : migration triviale
+    expect(migrate({ formatVersion: 1, a: 1 })).toEqual({ formatVersion: 2, a: 1 });
+    expect(migrate({ meta: { formatVersion: 1 } })).toEqual({ meta: { formatVersion: 2 } });
+    expect(() => migrate({ formatVersion: 3 })).toThrow(FormatVersionError);
     expect(() => migrate({})).toThrow(/absent/);
     // registre de migrations injecté (simulation d'une v0)
     const out = migrate<{ formatVersion: number; renamed: number }>({ formatVersion: 0, old: 3 }, {
       0: ({ old, ...rest }) => ({ ...rest, renamed: old }),
+      1: (d) => d,
     });
-    expect(out).toEqual({ formatVersion: 1, renamed: 3 });
+    expect(out).toEqual({ formatVersion: FORMAT_VERSION, renamed: 3 });
   });
 });
