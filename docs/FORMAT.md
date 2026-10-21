@@ -1007,8 +1007,9 @@ Niveaux, dans l'ordre (un niveau en erreur peut empêcher les suivants) :
      être joué ; `final_unreachable` : ni le but de la dernière quête ni une fin `win` ne
      sont atteints par les segments ;
    - le **BFS global est omis** (le verdict vient des segments) ; `--global` le lance
-     quand même avec les bornes habituelles : son éventuelle incomplétude n'est alors
-     qu'une information (résumé), mais un problème certain qu'il prouve reste une erreur.
+     quand même avec les bornes habituelles : tant qu'il est incomplet il
+     n'est qu'une information (résumé, sans erreur ni avertissement) ; complet, il est
+     rapporté comme d'habitude.
      Sans aucun `checkpoint`, comportement inchangé (BFS global seul) ;
    - le résumé de la CLI liste les quêtes (états, durée, verdict) ; `--json` ajoute la
      clé `segments` ; `--path-out` ajoute `segments[]` (chemin vers le but et soft-locks
