@@ -570,6 +570,7 @@ export function checkpointState(game: GameData, cp: Checkpoint): GameState {
       sortedAdd(state.ever_had, item);
     }
   }
+  for (const item of cp.ever_had) sortedAdd(state.ever_had, item);
   for (const [scene, targets] of Object.entries(cp.reveal)) for (const t of targets) (state.visibility[scene] ??= {})[t] = true;
   for (const [scene, targets] of Object.entries(cp.hide)) for (const t of targets) (state.visibility[scene] ??= {})[t] = false;
   for (const q of [...cp.quests, ...cp.completed]) sortedAdd(state.quests.unlocked, q);

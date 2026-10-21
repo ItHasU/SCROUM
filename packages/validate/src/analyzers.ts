@@ -148,6 +148,7 @@ export const referencesAnalyzer: Analyzer = {
       if (cp) {
         ref('scene', cp.scene, f, `${q.id}.checkpoint.scene`);
         Object.keys(cp.inventory).forEach((i) => ref('item', i, f, `${q.id}.checkpoint.inventory.${i}`));
+        cp.ever_had.forEach((i, j) => ref('item', i, f, `${q.id}.checkpoint.ever_had[${j}]`));
         Object.keys(cp.counters).forEach((c) => ref('counter', c, f, `${q.id}.checkpoint.counters.${c}`));
         cp.quests.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.quests[${i}]`));
         cp.completed.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.completed[${i}]`));

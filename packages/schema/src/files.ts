@@ -300,6 +300,7 @@ const CheckpointSchema = z
       .union([z.array(IdSchema), z.record(IdSchema, z.number().int().min(1))])
       .default({})
       .transform((inv) => (Array.isArray(inv) ? Object.fromEntries(inv.map((i) => [i, 1])) : inv)),
+    ever_had: idList,
     quests: idList,
     completed: idList,
     reveal: z.record(IdSchema, z.array(IdSchema)).default({}),
@@ -323,6 +324,7 @@ const CheckpointSchema = z
       vars: c.vars,
       counters: c.counters,
       inventory: c.inventory,
+      ever_had: c.ever_had,
       quests: c.quests,
       completed: c.completed,
       reveal: c.reveal,

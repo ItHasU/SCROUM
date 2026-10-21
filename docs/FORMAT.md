@@ -362,6 +362,7 @@ recuperer_huile:
     vars: { confiance: 2 }       # valeurs imposées (écrasent initial)
     counters: { courage: 3 }     # valeurs imposées (écrasent la valeur initiale du compteur)
     inventory: [meche]           # objets donnés automatiquement : liste ou { meche: 1 }
+    ever_had: [bidon]            # objets déjà possédés puis consommés (hotspots « ramassables une fois » masqués)
     quests: [rallumer_phare]     # quêtes débloquées
     completed: [trouver_meche]   # quêtes déjà terminées (aussi débloquées)
     reveal: { port: [echelle] }  # hotspots / sorties déjà révélés (effet `reveal`), par scène
