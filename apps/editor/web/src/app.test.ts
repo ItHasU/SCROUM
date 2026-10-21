@@ -125,7 +125,8 @@ describe('front de l’éditeur (jsdom)', () => {
   it('Atelier d’images : génération, sélection, comparaison, validation humaine', async () => {
     nav('images');
     await until(() => view('images').querySelectorAll('.img-row').length > 5, 30000);
-    expect(view('images').textContent).toContain('connecté');
+    // l'état de ComfyUI arrive par une requête séparée, parfois après la liste des assets
+    await until(() => (view('images').textContent ?? '').includes('connecté'), 30000);
     view('images').querySelector<HTMLElement>('.img-row[data-asset="img_port_bg"]')!.click();
     await until(() => (view('images').querySelector<HTMLTextAreaElement>('#img-prompt')?.value ?? '').includes('port breton'), 30000);
     const n = view('images').querySelector<HTMLInputElement>('#img-n')!;
