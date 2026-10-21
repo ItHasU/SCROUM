@@ -15,3 +15,4 @@ export * from './types';
 export * from './validate';
 export * from './analyzers';
 export * from './playability';
+export * from './segments';

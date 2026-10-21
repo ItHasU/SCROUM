@@ -142,6 +142,23 @@ export const referencesAnalyzer: Analyzer = {
     ref('character', m.player_character, 'game.yaml', 'player_character');
     Object.keys(m.initial.inventory).forEach((i) => ref('item', i, 'game.yaml', `initial.inventory.${i}`));
     m.initial.quests.forEach((q, i) => ref('quest', q, 'game.yaml', `initial.quests[${i}]`));
+    for (const q of Object.values(game.quests)) {
+      const cp = q.checkpoint;
+      const f = q.source;
+      if (cp) {
+        ref('scene', cp.scene, f, `${q.id}.checkpoint.scene`);
+        Object.keys(cp.inventory).forEach((i) => ref('item', i, f, `${q.id}.checkpoint.inventory.${i}`));
+        Object.keys(cp.counters).forEach((c) => ref('counter', c, f, `${q.id}.checkpoint.counters.${c}`));
+        cp.quests.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.quests[${i}]`));
+        cp.completed.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.completed[${i}]`));
+        if (cp.dialogue) {
+          if (ref('dialogue', cp.dialogue.id, f, `${q.id}.checkpoint.dialogue`) && cp.dialogue.node && !game.dialogues[cp.dialogue.id]!.nodes[cp.dialogue.node])
+            ctx.report('error', 'unknown_node', f, `${q.id}.checkpoint.dialogue.node`, `nœud « ${cp.dialogue.node} » inconnu dans le dialogue « ${cp.dialogue.id} »`);
+        }
+      }
+      if (q.goal?.ending) ref('ending', q.goal.ending, f, `${q.id}.goal.ending`);
+      if (q.goal?.condition) checkCondition(q.goal.condition, { file: f, path: `${q.id}.goal.if` }, ref);
+    }
     game.collections.forEach((c, i) => {
       ref('character', c.character, 'game.yaml', `collections[${i}].character`);
       c.images.forEach((a, j) => ref('asset', a, 'game.yaml', `collections[${i}].images[${j}]`));
