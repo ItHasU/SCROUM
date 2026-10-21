@@ -1,6 +1,6 @@
 # Format de contenu SCROUM — référence
 
-> Format **version 1** (`formatVersion: 1`). Ce document est la référence pour écrire
+> Format **version 2** (`formatVersion: 2`, les sources en `formatVersion: 1` sont migrées à la volée). Ce document est la référence pour écrire
 > le contenu d'un jeu SCROUM, à la main ou avec Claude Code. Il décrit chaque fichier,
 > chaque construction et sa **sémantique d'exécution** (ce que fait le moteur).
 >
@@ -1074,6 +1074,7 @@ Historique :
 
 | Version | Changements |
 |---|---|
+| 2 | Version courante. Migration 1 → 2 triviale (aucune donnée ne change) : elle marque la publication des ajouts de la v1 listés ci-dessous (`next` conditionnel, etc.), qu'un lecteur v1 ne comprend pas. Un zip v2 est donc refusé proprement par un lecteur v1, au lieu d'être joué de travers. Les sources `formatVersion: 1` restent acceptées. |
 | 1 | Version initiale. Ajouts optionnels et rétrocompatibles faits **avant toute publication**, donc sans incrément de `formatVersion` : `actions` sur les objets (verbes d'inventaire), `next` conditionnel et `lines[].if` dans les dialogues, `vars` bornées, `endings.*.text` conditionnel, `content/skins/*.css` embarqué dans `GameData.skins`, `dialogue.echo_choices`. |
 
 ---

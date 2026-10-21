@@ -7,13 +7,20 @@
  */
 
 /** Version courante du format de contenu (`game.yaml → formatVersion`, `game.json`, `manifest.json`). */
-export const FORMAT_VERSION = 1;
+export const FORMAT_VERSION = 2;
 
 /** Fait passer une donnée de la version `n` à `n + 1`. */
 export type Migration = (data: Record<string, unknown>) => Record<string, unknown>;
 
-/** Registre des migrations, indexé par version de départ. Vide tant que le format est en v1. */
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+/**
+ * Registre des migrations, indexé par version de départ.
+ * 1 → 2 : migration triviale. La v2 ne change aucune donnée : elle marque l'arrivée du `next` conditionnel,
+ * de `lines[].if`, des `vars` bornées, etc. (ajouts faits sous v1 puis publiés). Un lecteur v1 ne les comprend pas et
+ * doit donc refuser proprement un jeu v2 au lieu de le jouer de travers.
+ */
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: (data) => data,
+};
 
 export class FormatVersionError extends Error {
   constructor(

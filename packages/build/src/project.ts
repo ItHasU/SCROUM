@@ -40,8 +40,8 @@ export function resolveProject(path: string): ResolvedProject {
       const msg = r.error.issues.map((i) => `${i.path.join('.') || '(racine)'} : ${i.message}`).join(' ; ');
       throw new ProjectError(`${PROJECT_FILE} invalide : ${msg}`);
     }
-    if (r.data.formatVersion !== FORMAT_VERSION) {
-      throw new ProjectError(`${PROJECT_FILE} : formatVersion ${r.data.formatVersion}, ce SCROUM gère le format ${FORMAT_VERSION}`);
+    if (r.data.formatVersion > FORMAT_VERSION) {
+      throw new ProjectError(`${PROJECT_FILE} : formatVersion ${r.data.formatVersion}, ce SCROUM gère le format ${FORMAT_VERSION} au plus`);
     }
     return { root, contentDir: resolve(root, r.data.content), config: r.data, notes: [] };
   }

@@ -71,7 +71,6 @@ test('partie complète gagnante', async ({ page }) => {
   await hold(page, 'cle_rouillee');
   await page.click('.drawer .close');
   await page.click('.stage [data-hotspot=porte_escalier]');
-  await page.click('.hotspot-menu [data-verb=use]');
   await verb(page, 'commode', 'fouiller');
   await verb(page, 'lit', 'dormir');
   await expect(page.locator('.stage')).toHaveAttribute('data-scene', 'songe_grotte');
@@ -95,11 +94,9 @@ test('partie complète gagnante', async ({ page }) => {
   await hold(page, 'meche_huilee');
   await page.click('.drawer .close');
   await page.click('.stage [data-hotspot=lampe]');
-  await page.click('.hotspot-menu [data-verb=use]');
   await hold(page, 'briquet');
   await page.click('.drawer .close');
   await page.click('.stage [data-hotspot=lampe]');
-  await page.click('.hotspot-menu [data-verb=use]');
 
   await expect(page.locator('.ending')).toHaveAttribute('data-type', 'win');
   await expect(page.locator('.ending')).toContainText('Le phare veille');
@@ -122,7 +119,6 @@ test('game over, recommencer, sauvegarde et paysage', async ({ page }) => {
   await hold(page, 'cle_rouillee');
   await page.click('.drawer .close');
   await page.click('.stage [data-hotspot=porte_escalier]');
-  await page.click('.hotspot-menu [data-verb=use]');
   await exit(page, 'exit_lanterne');
   await verb(page, 'balcon', 'enjamber');
   await expect(page.locator('.ending')).toHaveAttribute('data-type', 'game_over');
@@ -130,4 +126,20 @@ test('game over, recommencer, sauvegarde et paysage', async ({ page }) => {
   await page.click('[data-load="1"]');
   await expect(page.locator('.stage')).toHaveAttribute('data-scene', 'phare_bas');
   await expect(page.locator('.ending')).toBeHidden();
+});
+
+test('objet en main + tap sur le hotspot : `use` direct, et hotspot révélé surligné', async ({ page }) => {
+  await exit(page, 'exit_phare_bas');
+  await page.tap('.stage [data-hotspot=coffre]');
+  await page.tap('.hotspot-menu [data-verb=open]');
+  // Le hotspot révélé (invisible sur le décor) pulse quelques secondes.
+  await expect(page.locator('.stage [data-hotspot=cle_rouillee]')).toHaveClass(/fresh/);
+  await page.tap('.stage [data-hotspot=cle_rouillee]');
+  await page.tap('.hotspot-menu [data-verb=take]');
+  await hold(page, 'cle_rouillee');
+  await page.tap('.drawer .close');
+  await page.tap('.stage [data-hotspot=porte_escalier]');
+  // Pas de menu intermédiaire : l'action est exécutée tout de suite.
+  await expect(page.locator('.hotspot-menu')).toBeHidden();
+  await expect(page.locator('.log')).toContainText('La porte est ouverte');
 });
