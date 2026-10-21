@@ -127,6 +127,16 @@ exits:`,
     expect(v.ok).toBe(true);
   });
 
+  it('drapeau donné mais jamais lu : ignoré ; lu : chaîné', () => {
+    const b = SCENE_B.replace('{ complete_quest: q2 }', '{ set: note }, { complete_quest: q2 }');
+    const q = QUESTS.replace('inventory: [piece]', 'inventory: [piece], flags: [note]');
+    const v = validateContent(files({ 'scenes/b.yaml': b, 'bible/quests.yaml': q }), { playability: true });
+    expect(v.segments!.neverObtained).toEqual([]);
+    const read = b.replace('    label: Fantôme', '    label: Fantôme\n    hidden: true').replace('visible_if: { quest: q2, state: completed }', 'visible_if: { flag: note }');
+    const v2 = validateContent(files({ 'scenes/b.yaml': read, 'bible/quests.yaml': q }), { playability: true });
+    expect(v2.segments!.neverObtained).toEqual([{ quest: 'q2', kind: 'flag', id: 'note' }]);
+  });
+
   it('but inatteignable : erreur', () => {
     const q = QUESTS.replace('q1:\n  title: Q1\n', 'q1:\n  title: Q1\n  goal: { if: { flag: jamais_pose } }\n');
     const v = validateContent(files({ 'bible/quests.yaml': q }), { playability: true });
