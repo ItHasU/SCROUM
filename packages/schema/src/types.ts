@@ -248,6 +248,8 @@ export interface Checkpoint {
   counters: Record<Id, number>;
   /** Objets donnés automatiquement (objet → quantité). */
   inventory: Record<Id, number>;
+  /** Objets déjà possédés puis perdus ou consommés (`ever_had`, en plus de l'inventaire). */
+  ever_had: Id[];
   /** Quêtes débloquées. */
   quests: Id[];
   /** Quêtes terminées (aussi débloquées). */
