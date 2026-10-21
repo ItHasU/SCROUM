@@ -364,6 +364,8 @@ recuperer_huile:
     inventory: [meche]           # objets donnés automatiquement : liste ou { meche: 1 }
     quests: [rallumer_phare]     # quêtes débloquées
     completed: [trouver_meche]   # quêtes déjà terminées (aussi débloquées)
+    reveal: { port: [echelle] }  # hotspots / sorties déjà révélés (effet `reveal`), par scène
+    hide: { port: [barque] }     # …ou masqués (effet `hide`)
     dialogue: sam_accueil        # optionnel : dialogue lancé à la reprise (ou { id, node })
     limits: { max_states: 300000, max_depth: 1000, time_limit: 60 }   # bornes propres au segment
   goal:                          # fin de la quête ; défaut : la quête est « completed »

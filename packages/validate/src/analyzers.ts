@@ -151,6 +151,14 @@ export const referencesAnalyzer: Analyzer = {
         Object.keys(cp.counters).forEach((c) => ref('counter', c, f, `${q.id}.checkpoint.counters.${c}`));
         cp.quests.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.quests[${i}]`));
         cp.completed.forEach((x, i) => ref('quest', x, f, `${q.id}.checkpoint.completed[${i}]`));
+        for (const kind of ['reveal', 'hide'] as const)
+          for (const [scene, targets] of Object.entries(cp[kind])) {
+            if (!ref('scene', scene, f, `${q.id}.checkpoint.${kind}.${scene}`)) continue;
+            const sc = game.scenes[scene]!;
+            for (const t of targets)
+              if (!sc.hotspots.some((h) => h.id === t) && !sc.exits.some((e) => e.id === t))
+                ctx.report('error', 'unknown_target', f, `${q.id}.checkpoint.${kind}.${scene}`, `aucun hotspot ni sortie « ${t} » dans la scène « ${scene} »`);
+          }
         if (cp.dialogue) {
           if (ref('dialogue', cp.dialogue.id, f, `${q.id}.checkpoint.dialogue`) && cp.dialogue.node && !game.dialogues[cp.dialogue.id]!.nodes[cp.dialogue.node])
             ctx.report('error', 'unknown_node', f, `${q.id}.checkpoint.dialogue.node`, `nœud « ${cp.dialogue.node} » inconnu dans le dialogue « ${cp.dialogue.id} »`);

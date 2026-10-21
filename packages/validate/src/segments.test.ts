@@ -140,6 +140,15 @@ exits:`,
     expect(v.errors.map((e) => e.code)).not.toContain('softlock');
   });
 
+  it('reveal du checkpoint : un hotspot caché devient accessible', () => {
+    const b = SCENE_B.replace('  - id: marchand', '  - id: marchand\n    hidden: true').replace('label: Marchand', 'label: Marchand');
+    const q = QUESTS.replace('inventory: [piece]', 'inventory: [piece], reveal: { b: [marchand] }');
+    const v = validateContent(files({ 'scenes/b.yaml': b, 'bible/quests.yaml': q }), { playability: true });
+    expect(v.segments!.segments[1]!.goalReached).toBe(true);
+    const bad = validateContent(files({ 'bible/quests.yaml': QUESTS.replace('inventory: [piece]', 'inventory: [piece], reveal: { b: [nul] }') }));
+    expect(bad.errors.map((e) => e.code)).toContain('unknown_target');
+  });
+
   it('référence inconnue dans un checkpoint : erreur', () => {
     const q = QUESTS.replace('scene: b,', 'scene: nulle_part,');
     const v = validateContent(files({ 'bible/quests.yaml': q }));
