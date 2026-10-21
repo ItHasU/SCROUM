@@ -12,11 +12,12 @@ export interface AppParams {
   game: string | null;
   source: string | null;
   scene: string | null;
+  quest: string | null;
 }
 
 export function readParams(search = location.search): AppParams {
   const p = new URLSearchParams(search);
-  return { game: p.get('game'), source: p.get('source'), scene: p.get('scene') };
+  return { game: p.get('game'), source: p.get('source'), scene: p.get('scene'), quest: p.get('quest') };
 }
 
 export class PlayerApp {
@@ -51,7 +52,7 @@ export class PlayerApp {
       return this.home(describeLoadError(e));
     }
     document.title = this.loaded.game.meta.title;
-    if (this.embedded || scene) this.play('new', scene);
+    if (this.embedded || scene || this.params.quest) this.play('new', scene);
     else this.home();
   }
 
@@ -95,7 +96,7 @@ export class PlayerApp {
     this.view = view;
     const auto = mode === 'continue' ? view.saves.read('auto') : null;
     if (auto) controller.loadState(auto.state, auto.log);
-    else controller.newGame(scene ?? null);
+    else controller.newGame(scene ?? null, this.params.quest);
     if (this.embedded) this.stopPlaytest = attachPlaytest(controller);
   }
 

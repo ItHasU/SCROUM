@@ -27,6 +27,7 @@
 import { forEachCondition, visitConditions, visitSteps, type Condition, type DialogueNode, type EndingType, type GameData, type Id } from '@scroum/schema';
 import { describeAction, listActions, start, step, stateKey, type Action, type EngineEvent, type EngineOptions, type Expectation, type GameState, type Scenario, type ScenarioStep } from '@scroum/engine';
 import type { Analyzer, AnalyzerContext } from './types';
+import { analyzeSegments, hasCheckpoints, reportSegments, type SegmentsReport } from './segments';
 
 // ---------------------------------------------------------------------------
 // Types publics
@@ -45,6 +46,33 @@ export interface PlayabilityOptions {
   engine?: EngineOptions;
   /** Horloge (tests). */
   now?: () => number;
+  /**
+   * BFS global quand des quêtes ont un `checkpoint` : `auto` (défaut) l'omet, `on` le
+   * lance quand même (son éventuelle incomplétude n'est alors qu'une information),
+   * `off` l'omet toujours. Sans checkpoint, le BFS global est toujours lancé.
+   */
+  global?: 'auto' | 'on' | 'off';
+  /** Faux : ignorer les checkpoints (BFS global seul, comme avant). Défaut vrai. */
+  segments?: boolean;
+  /**
+   * Exploration d'un segment (quête) : état de départ déjà forgé (au lieu de
+   * `start(game)`) et but. Un état qui satisfait `goal` est terminal et compte comme
+   * « victoire » (`winReachable`, `winPath`) ; les fins ne sont alors plus des buts.
+   */
+  segment?: { initial: GameState; initialEvents?: EngineEvent[]; goal: (s: GameState) => boolean };
+}
+
+/** Ce qu'un segment produit à l'atteinte de son but (union sur les états-buts explorés). */
+export interface GoalSummary {
+  /** Nombre d'états-buts distincts. */
+  states: number;
+  items: Id[];
+  flags: Id[];
+  vars: Id[];
+  counters: Id[];
+  /** Quêtes débloquées / terminées. */
+  unlocked: Id[];
+  completed: Id[];
 }
 
 export const DEFAULT_PLAYABILITY_LIMITS = { maxStates: 100_000, maxDepth: 1_000, timeLimitMs: 30_000, maxSoftlockGroups: 20 } as const;
@@ -159,6 +187,8 @@ export interface PlayabilityReport {
   softlockStates: { certain: number; suspected: number };
   /** Groupes non diagnostiqués faute de place (`maxSoftlockGroups`). */
   omittedGroups: number;
+  /** Segments seulement : ce qui est présent à l'atteinte du but. */
+  goalSummary: GoalSummary | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -556,6 +586,15 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
     }
   };
 
+  const seg = options.segment;
+  const gItems = new Set<Id>();
+  const gFlags = new Set<Id>();
+  const gVars = new Set<Id>();
+  const gCounters = new Set<Id>();
+  const gQuests = new Set<Id>();
+  const gDone = new Set<Id>();
+  let goalCount = 0;
+  let firstGoal = -1;
   const queue: (GameState | null)[] = [];
   const add = (s: GameState, from: number, act: number): number => {
     const key = exploreKey(s);
@@ -580,8 +619,23 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
     for (const q of s.quests.unlocked) seenQuests.add(q);
     for (const q of s.quests.completed) doneQuests.add(q);
     for (const c of s.collections) seenCollections.add(c);
-    if (s.ending) {
-      term.push(s.ending.type === 'win' ? 1 : 2);
+    if (seg?.goal(s)) {
+      term.push(1);
+      if (firstGoal < 0) firstGoal = id;
+      goalCount++;
+      for (const i of Object.keys(s.inventory)) gItems.add(i);
+      for (const f of s.flags) gFlags.add(f);
+      for (const k of Object.keys(s.vars)) gVars.add(k);
+      for (const [k, v] of Object.entries(s.counters)) if (v !== 0) gCounters.add(k);
+      for (const q of s.quests.unlocked) gQuests.add(q);
+      for (const q of s.quests.completed) gDone.add(q);
+      if (s.ending) {
+        endingOf.set(id, s.ending.id);
+        if (!firstEnding.has(s.ending.id)) firstEnding.set(s.ending.id, id);
+      }
+      queue.push(null);
+    } else if (s.ending) {
+      term.push(seg ? 2 : s.ending.type === 'win' ? 1 : 2);
       endingOf.set(id, s.ending.id);
       if (!firstEnding.has(s.ending.id)) firstEnding.set(s.ending.id, id);
       queue.push(null);
@@ -593,7 +647,7 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
   };
 
   const sats = saturations(game);
-  const first = start(game, eng);
+  const first = seg ? { state: structuredClone(seg.initial), events: seg.initialEvents ?? [] } : start(game, eng);
   saturate(first.state, sats);
   noteEvents(first.events);
   add(first.state, -1, -1);
@@ -652,7 +706,7 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
     return { actions, steps: actions.map(describeAction) };
   };
   const replay = (path: ReplayPath): GameState => {
-    let s = start(game, eng).state;
+    let s = seg ? structuredClone(seg.initial) : start(game, eng).state;
     for (const a of path.actions) s = step(game, s, a, eng).state;
     return s;
   };
@@ -661,7 +715,7 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
   const reached: ReachedEnding[] = [...firstEnding.entries()]
     .map(([id, sid]) => ({ id, type: term[sid] === 1 ? ('win' as const) : ('game_over' as const), path: pathTo(sid) }))
     .sort((a, b) => a.path.actions.length - b.path.actions.length || a.id.localeCompare(b.id));
-  const winPath = reached.find((e) => e.type === 'win') ?? null;
+  const winPath: ReachedEnding | null = seg ? (firstGoal >= 0 ? { id: 'goal', type: 'win', path: pathTo(firstGoal) } : null) : (reached.find((e) => e.type === 'win') ?? null);
 
   // --- accessibilité inverse
   const fwd = csr(n, eFrom, eTo);
@@ -926,6 +980,7 @@ export function analyzePlayability(game: GameData, options: PlayabilityOptions =
     softlocks: [...c1.groups, ...c2.groups],
     softlockStates: { certain: certain.size, suspected: suspected.size },
     omittedGroups: c1.omitted + c2.omitted,
+    goalSummary: seg ? { states: goalCount, items: [...gItems].sort(), flags: [...gFlags].sort(), vars: [...gVars].sort(), counters: [...gCounters].sort(), unlocked: [...gQuests].sort(), completed: [...gDone].sort() } : null,
   };
 }
 
@@ -957,33 +1012,61 @@ export interface PlayabilityPathsFile {
   win: (ExportedPath & { ending: Id }) | null;
   endings: (ExportedPath & { ending: Id; type: EndingType })[];
   softlocks: (ExportedPath & { cause: string; kind: SoftlockKind; message: string; suspected: boolean; state: GameState })[];
+  /**
+   * Par quête (segments) : chemins depuis le checkpoint. Leurs `scenario` se rejouent avec
+   * `runScenario(game, scenario, { initialState: startState })`.
+   */
+  segments?: {
+    quest: Id;
+    goalReached: boolean;
+    complete: boolean;
+    startState: GameState;
+    goal: ExportedPath | null;
+    softlocks: (ExportedPath & { cause: string; kind: SoftlockKind; message: string; suspected: boolean; state: GameState })[];
+  }[];
 }
 
 /** Chemins rejouables d'un rapport, au format de `--path-out`. */
-export function exportPaths(game: GameData, report: PlayabilityReport, options?: EngineOptions): PlayabilityPathsFile {
+export function exportPaths(game: GameData, report: PlayabilityReport | null, options?: EngineOptions, segments?: SegmentsReport | null): PlayabilityPathsFile {
   const ending = (e: ReachedEnding) => {
     const name = `fin ${e.id} (${e.type})`;
     return { name, ending: e.id, type: e.type, ...e.path, scenario: pathToScenario(name, e.path, { ending: e.id, endingType: e.type }, options) };
   };
+  const softlock = (g: SoftlockGroup) => {
+    const name = `${g.suspected ? 'soft-lock suspecté' : 'soft-lock'} : ${g.diagnosis.kind}${g.diagnosis.item ? ` (${g.diagnosis.item})` : ''}`;
+    const expect = { scene: g.state.scene, dialogue: g.state.dialogue?.id ?? null, ending: null };
+    return {
+      name,
+      cause: g.cause,
+      kind: g.diagnosis.kind,
+      message: g.diagnosis.message,
+      suspected: g.suspected,
+      ...g.path,
+      state: g.state,
+      scenario: pathToScenario(name, g.path, expect, options),
+    };
+  };
   return {
     game: { title: game.meta.title, version: game.meta.version },
-    complete: report.complete,
-    win: report.winPath ? (({ type: _t, ...rest }) => rest)(ending(report.winPath)) : null,
-    endings: report.endings.reached.map(ending),
-    softlocks: report.softlocks.map((g) => {
-      const name = `${g.suspected ? 'soft-lock suspecté' : 'soft-lock'} : ${g.diagnosis.kind}${g.diagnosis.item ? ` (${g.diagnosis.item})` : ''}`;
-      const expect = { scene: g.state.scene, dialogue: g.state.dialogue?.id ?? null, ending: null };
-      return {
-        name,
-        cause: g.cause,
-        kind: g.diagnosis.kind,
-        message: g.diagnosis.message,
-        suspected: g.suspected,
-        ...g.path,
-        state: g.state,
-        scenario: pathToScenario(name, g.path, expect, options),
-      };
-    }),
+    complete: report?.complete ?? false,
+    win: report?.winPath ? (({ type: _t, ...rest }) => rest)(ending(report.winPath)) : null,
+    endings: report?.endings.reached.map(ending) ?? [],
+    softlocks: report?.softlocks.map(softlock) ?? [],
+    ...(segments
+      ? {
+          segments: segments.segments.map((s) => {
+            const name = `quête ${s.quest} : but (${s.goal})`;
+            return {
+              quest: s.quest,
+              goalReached: s.goalReached,
+              complete: s.complete,
+              startState: s.initial,
+              goal: s.goalPath ? { name, ...s.goalPath.path, scenario: pathToScenario(name, s.goalPath.path, undefined, options) } : null,
+              softlocks: s.softlocks.map(softlock),
+            };
+          }),
+        }
+      : {}),
   };
 }
 
@@ -1063,13 +1146,26 @@ export function reportPlayability(game: GameData, r: PlayabilityReport, ctx: Ana
  * Crée l'analyseur de jouabilité (niveau `playability`). `onReport` reçoit le
  * rapport complet (chemins compris) ; les problèmes sont signalés via `ctx`.
  */
-export function createPlayabilityAnalyzer(options: PlayabilityOptions = {}, onReport?: (r: PlayabilityReport) => void): Analyzer {
+export function createPlayabilityAnalyzer(
+  options: PlayabilityOptions = {},
+  onReport?: (r: PlayabilityReport) => void,
+  onSegments?: (r: SegmentsReport) => void,
+): Analyzer {
   return {
     name: 'playability',
     level: 'playability',
     run(game, ctx) {
+      const segmented = options.segments !== false && hasCheckpoints(game);
+      if (segmented) {
+        const sr = analyzeSegments(game, options);
+        onSegments?.(sr);
+        reportSegments(game, sr, ctx);
+      }
+      if (segmented && (options.global ?? 'auto') !== 'on') return;
       const r = analyzePlayability(game, options);
       onReport?.(r);
+      // Segments présents : le BFS global incomplet n'est qu'une information (rapport), sans verdict.
+      if (segmented && !r.complete) return;
       reportPlayability(game, r, ctx);
     },
   };

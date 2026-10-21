@@ -1,6 +1,6 @@
 /** Vue Playtest : player en iframe + panneau de debug alimenté par postMessage. */
 import { h, render } from '../dom';
-import { parsePlayerMessage, playUrl, type DebugState, type IntentInfo } from '../model/protocol';
+import { parsePlayerMessage, playUrl, questOfTarget, type DebugState, type IntentInfo } from '../model/protocol';
 import { on, state } from '../store';
 import type { View } from './view';
 
@@ -25,7 +25,7 @@ export function createPlaytestView(): View {
     frame = h('iframe', { class: 'play', src: playUrl(scene), title: 'Playtest', allow: 'autoplay' });
     render(
       frameBox,
-      h('div', { class: 'toolbar' }, h('a', { href: playUrl(scene), target: '_blank', rel: 'noopener' }, 'Ouvrir dans un onglet'), h('button', { onclick: () => post({ scroum: 'restart', ...(state.playScene ? { scene: state.playScene } : {}) }) }, 'Recommencer'), h('button', { onclick: () => loadFrame(null) }, 'Depuis le début'), scene ? h('span', { class: 'tag' }, `depuis ${scene}`) : null),
+      h('div', { class: 'toolbar' }, h('a', { href: playUrl(scene), target: '_blank', rel: 'noopener' }, 'Ouvrir dans un onglet'), h('button', { onclick: () => post({ scroum: 'restart', ...(questOfTarget(state.playScene) ? { quest: questOfTarget(state.playScene) } : state.playScene ? { scene: state.playScene } : {}) }) }, 'Recommencer'), h('button', { onclick: () => loadFrame(null) }, 'Depuis le début'), scene ? h('span', { class: 'tag' }, `depuis ${scene}`) : null),
       frame,
     );
     drawPanel();

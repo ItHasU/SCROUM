@@ -236,11 +236,41 @@ export interface World {
   source: string;
 }
 
+/**
+ * Point de reprise d'une quête (`quests.yaml → checkpoint`) : état fusionné par-dessus
+ * l'état initial (`initial`) pour valider ou jouer la quête isolément.
+ */
+export interface Checkpoint {
+  /** Scène de départ (défaut : `start_scene`). */
+  scene: Id | null;
+  flags: Id[];
+  vars: Record<Id, number>;
+  counters: Record<Id, number>;
+  /** Objets donnés automatiquement (objet → quantité). */
+  inventory: Record<Id, number>;
+  /** Quêtes débloquées. */
+  quests: Id[];
+  /** Quêtes terminées (aussi débloquées). */
+  completed: Id[];
+  /** Bornes propres au segment (`scroum validate`) ; `time_limit` en secondes. */
+  limits: { max_states: number | null; max_depth: number | null; time_limit: number | null } | null;
+  /** Dialogue lancé à la reprise. */
+  dialogue: { id: Id; node: Id | null } | null;
+}
+
+/** But d'une quête : condition, fin, ou (les deux nuls) quête « terminée ». */
+export interface QuestGoal {
+  condition: Condition | null;
+  ending: Id | null;
+}
+
 export interface Quest {
   id: Id;
   status: Status;
   title: string;
   description: string | null;
+  checkpoint: Checkpoint | null;
+  goal: QuestGoal | null;
   source: string;
 }
 

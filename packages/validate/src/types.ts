@@ -1,5 +1,6 @@
 import type { ContentError, GameData, Severity } from '@scroum/schema';
 import type { PlayabilityOptions, PlayabilityReport } from './playability';
+import type { SegmentsReport } from './segments';
 
 /** Un problème de validation (même forme que les erreurs de chargement). */
 export type Issue = ContentError;
@@ -16,6 +17,8 @@ export interface ValidationReport {
   skipped: { analyzer: string; reason: string }[];
   /** Rapport d'analyse de jouabilité (null si non demandée ou non exécutée). */
   playability: PlayabilityReport | null;
+  /** Rapport par quête (segments) quand des quêtes ont un `checkpoint`, sinon null. */
+  segments: SegmentsReport | null;
 }
 
 /** Contexte fourni aux analyseurs. */

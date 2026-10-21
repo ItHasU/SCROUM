@@ -8,7 +8,7 @@
  *
  * Sémantique : docs/FORMAT.md (§7 scripts, §6 use/sorties, §10 dialogues).
  */
-import { counterTitle, findCombination, type GameData, type Id, type Script, type Transition } from '@scroum/schema';
+import { counterTitle, findCombination, type Checkpoint, type GameData, type Id, type Script, type Transition } from '@scroum/schema';
 import { evalCondition } from './conditions';
 import {
   canLeave,
@@ -550,4 +550,51 @@ export function start(game: GameData, options: EngineOptions = {}): StepResult {
 export function step(game: GameData, state: GameState, action: Action, options: EngineOptions = {}): StepResult {
   if (state.ending) return { state, events: [{ type: 'error', code: 'game_ended', message: 'la partie est terminée' }] };
   return run(game, cloneState(state), state, options, (rt) => rt.dispatch(action));
+}
+
+/** Fusionne un point de reprise par-dessus un état initial (voir `startFromCheckpoint`). */
+export function checkpointState(game: GameData, cp: Checkpoint): GameState {
+  const state = createInitialState(game);
+  if (cp.scene) state.scene = cp.scene;
+  for (const f of cp.flags) sortedAdd(state.flags, f);
+  for (const [k, raw] of Object.entries(cp.vars)) {
+    const v = clampVar(game, k, raw);
+    if (v !== 0) state.vars[k] = v;
+    else delete state.vars[k];
+  }
+  for (const [k, v] of Object.entries(cp.counters)) state.counters[k] = clampCounter(game, k, v);
+  for (const [item, qty] of Object.entries(cp.inventory)) {
+    const q = Math.min(qty, maxQty(game, item));
+    if (q > 0) {
+      state.inventory[item] = q;
+      sortedAdd(state.ever_had, item);
+    }
+  }
+  for (const q of [...cp.quests, ...cp.completed]) sortedAdd(state.quests.unlocked, q);
+  for (const q of cp.completed) sortedAdd(state.quests.completed, q);
+  for (const ch of Object.values(game.characters)) {
+    if (ch.persona && ch.revealed_by && evalCondition(ch.revealed_by, state)) sortedAdd(state.revealed, ch.id);
+  }
+  for (const col of game.collections) if (evalCondition(col.condition, state)) sortedAdd(state.collections, col.id);
+  return state;
+}
+
+/**
+ * Démarre depuis le point de reprise d'une quête : `start` mais sur l'état
+ * `checkpointState`, avec entrée dans la scène du point de reprise (`on_enter`)
+ * puis, si déclaré, ouverture du dialogue.
+ */
+export function startFromCheckpoint(game: GameData, cp: Checkpoint, options: EngineOptions = {}): StepResult {
+  const initial = checkpointState(game, cp);
+  return run(
+    game,
+    cloneState(initial),
+    initial,
+    options,
+    (rt) => {
+      rt.enterScene(initial.scene);
+      if (cp.dialogue && !rt.state.dialogue && !rt.state.ending) rt.openDialogue(cp.dialogue.id, cp.dialogue.node);
+    },
+    true,
+  );
 }

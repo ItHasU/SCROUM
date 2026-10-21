@@ -1,6 +1,7 @@
 import { loadContent, normalizePath, type ContentFiles, type GameData, type Severity } from '@scroum/schema';
 import { defaultAnalyzers } from './analyzers';
 import { createPlayabilityAnalyzer, type PlayabilityReport } from './playability';
+import type { SegmentsReport } from './segments';
 import type { Analyzer, AnalyzerContext, Issue, ValidateOptions, ValidationReport } from './types';
 
 const LEVELS: Analyzer['level'][] = ['rules', 'refs', 'playability'];
@@ -21,7 +22,8 @@ export function validateGame(game: GameData, options: ValidateOptions = {}, file
     },
   };
   let playability: PlayabilityReport | null = null;
-  const analyzers = allAnalyzers(options, (r) => (playability = r));
+  let segments: SegmentsReport | null = null;
+  const analyzers = allAnalyzers(options, (r) => (playability = r), (r) => (segments = r));
   for (const level of LEVELS) {
     for (const a of analyzers.filter((x) => x.level === level)) {
       if (level === 'playability' && errors.length > 0) {
@@ -31,12 +33,12 @@ export function validateGame(game: GameData, options: ValidateOptions = {}, file
       a.run(game, ctx);
     }
   }
-  return { ok: errors.length === 0, errors, warnings, game, skipped, playability };
+  return { ok: errors.length === 0, errors, warnings, game, skipped, playability, segments };
 }
 
-function allAnalyzers(options: ValidateOptions, onPlayability?: (r: PlayabilityReport) => void): Analyzer[] {
+function allAnalyzers(options: ValidateOptions, onPlayability?: (r: PlayabilityReport) => void, onSegments?: (r: SegmentsReport) => void): Analyzer[] {
   const out = [...(options.analyzers ?? defaultAnalyzers), ...(options.extraAnalyzers ?? [])];
-  if (options.playability) out.push(createPlayabilityAnalyzer(options.playability === true ? {} : options.playability, onPlayability));
+  if (options.playability) out.push(createPlayabilityAnalyzer(options.playability === true ? {} : options.playability, onPlayability, onSegments));
   return out;
 }
 
@@ -59,6 +61,7 @@ export function validateContent(files: ContentFiles, options: ValidateOptions = 
       game,
       skipped: analyzers.map((a) => ({ analyzer: a.name, reason: 'erreurs de chargement (YAML ou schéma) à corriger d’abord' })),
       playability: null,
+      segments: null,
     };
   }
   const report = validateGame(game, options, names);

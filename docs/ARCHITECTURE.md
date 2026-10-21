@@ -101,6 +101,12 @@ Graphe de dépendances : `schema` ← `engine` ← `ui` ← `player` ; `schema` 
   L'analyse de jouabilité s'ajoute comme analyseur de niveau `playability` (dans
   `defaultAnalyzers` ou via `validateContent(files, { extraAnalyzers })`) ; elle n'est
   exécutée que si les niveaux précédents n'ont produit aucune erreur.
+- **Validation par quête** (`segments.ts`) : les quêtes avec `checkpoint` sont explorées
+  isolément (`analyzePlayability` avec l'option `segment { initial, goal }` ; état forgé par
+  `startFromCheckpoint` du moteur, états-buts terminaux). Le chaînage compare ce que
+  chaque checkpoint donne à l'union des états-buts des segments antérieurs et à `initial`.
+  Le BFS global n'est lancé qu'avec `global: 'on'` (`--global`) quand des checkpoints
+  existent ; incomplet, il n'est plus qu'une information. `ValidationReport.segments`.
 - Soft-lock = état non terminal depuis lequel aucune fin de type `win` n'est atteignable ;
   rapporté avec le chemin d'actions le plus court. Fixture : `examples/demo-softlock`.
 
@@ -221,6 +227,9 @@ et, côté éditeur, dont `event.source` est l'iframe. Tout message est un objet
 
 **Paramètres d'URL du player** (en plus de `source`) : `scene=<id>` démarre une nouvelle partie directement dans cette
 scène (état initial du jeu, `state.scene = <id>`, `on_enter` exécuté) au lieu de `meta.start_scene`. Ignoré si la scène n'existe pas.
+`quest=<id>` démarre au `checkpoint` de la quête (`startFromCheckpoint` : inventaire, drapeaux, quêtes… forgés comme pour la
+validation par quête ; ignoré si la quête n'a pas de `checkpoint`, prioritaire sur `scene`). Le message `restart` accepte
+`{ quest }` en plus de `{ scene }`. Dans l'éditeur, « ▶ Jouer depuis ici » sur une quête avec `checkpoint` ouvre le playtest ainsi.
 
 **player → éditeur** (`window.parent.postMessage(msg, location.origin)`, seulement si `window.parent !== window`) :
 

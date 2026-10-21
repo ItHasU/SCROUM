@@ -35,11 +35,24 @@ export function formatReport(report: ValidationReport, opts: { style: Style; qui
     }
   }
   for (const s of report.skipped) lines.push(st.dim(`(non exécuté : ${s.analyzer} — ${s.reason})`));
+  const sg = report.segments;
+  if (sg) {
+    lines.push(st.bold(`Jouabilité par quête (${plural(sg.segments.length, 'segment')}) :`));
+    for (const x of sg.segments) {
+      const t = `${(x.stats.durationMs / 1000).toFixed(1)} s`;
+      const verdict = x.error ? st.red('checkpoint inutilisable') : x.goalReached ? st.green(`but atteint en ${plural(x.goalPath?.path.steps.length ?? 0, 'action')}`) : x.complete ? st.red('but INATTEIGNABLE') : st.yellow('but non trouvé');
+      const expl = x.complete ? 'complet' : st.yellow(`INCOMPLET (${x.stopReason})`);
+      const sl = x.softlocks.length ? st.red(`${plural(x.softlocks.length, 'soft-lock')}`) : 'aucun soft-lock';
+      lines.push(`  ${x.quest} : ${verdict} — ${plural(x.stats.states, 'état')} en ${t}, exploration ${expl}, ${sl}`);
+    }
+    lines.push(sg.finalReached ? st.green('  fin du jeu atteinte par les segments') : st.red('  fin du jeu non atteinte par les segments'));
+  }
   const pl = report.playability;
   if (pl) {
     const t = `${(pl.stats.durationMs / 1000).toFixed(1)} s`;
     const head = `Jouabilité : ${plural(pl.stats.states, 'état')} explorés en ${t}, profondeur ${pl.stats.depth}`;
-    if (!pl.complete) lines.push(st.yellow(`${head} — exploration INCOMPLÈTE (${pl.stopReason ?? 'borne atteinte'}) : absence de fin, de soft-lock ou d'élément atteint non concluante`));
+    if (!pl.complete && sg) lines.push(st.dim(`${head} — BFS global incomplet (${pl.stopReason ?? 'borne atteinte'}) : information seule, le verdict vient des segments`));
+    else if (!pl.complete) lines.push(st.yellow(`${head} — exploration INCOMPLÈTE (${pl.stopReason ?? 'borne atteinte'}) : absence de fin, de soft-lock ou d'élément atteint non concluante`));
     else lines.push(st.dim(`${head} — exploration complète`));
     lines.push(pl.winReachable ? st.green(`  fin win atteignable : ${pl.winPath?.id ?? '?'}${pl.winPath ? ` (${pl.winPath.path.steps.length} actions)` : ''}`) : st.dim('  fin win non atteinte'));
     const n = pl.softlocks.length;

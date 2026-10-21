@@ -46,6 +46,8 @@ import type {
   Line,
   NextBranch,
   Quest,
+  Checkpoint,
+  QuestGoal,
   Rect,
   Scene,
   Script,
@@ -288,9 +290,58 @@ export const WorldSchema = z
 export const WorldsFileSchema = z.record(IdSchema, WorldSchema);
 export type WorldEntry = Omit<World, 'id' | 'source' | 'refuse_line'> & { refuse_line: string | null };
 
+const CheckpointSchema = z
+  .strictObject({
+    scene: IdSchema.nullish(),
+    flags: idList,
+    vars: z.record(IdSchema, z.number()).default({}),
+    counters: z.record(IdSchema, z.number()).default({}),
+    inventory: z
+      .union([z.array(IdSchema), z.record(IdSchema, z.number().int().min(1))])
+      .default({})
+      .transform((inv) => (Array.isArray(inv) ? Object.fromEntries(inv.map((i) => [i, 1])) : inv)),
+    quests: idList,
+    completed: idList,
+    limits: z
+      .strictObject({
+        max_states: z.number().int().min(1).nullish(),
+        max_depth: z.number().int().min(1).nullish(),
+        time_limit: z.number().positive().nullish(),
+      })
+      .nullish(),
+    dialogue: z
+      .union([IdSchema, z.strictObject({ id: IdSchema, node: IdSchema.nullish() })])
+      .nullish()
+      .transform((d) => (d == null ? null : typeof d === 'string' ? { id: d, node: null } : { id: d.id, node: d.node ?? null })),
+  })
+  .transform(
+    (c): Checkpoint => ({
+      scene: c.scene ?? null,
+      flags: c.flags,
+      vars: c.vars,
+      counters: c.counters,
+      inventory: c.inventory,
+      quests: c.quests,
+      completed: c.completed,
+      limits: c.limits ? { max_states: c.limits.max_states ?? null, max_depth: c.limits.max_depth ?? null, time_limit: c.limits.time_limit ?? null } : null,
+      dialogue: c.dialogue,
+    }),
+  );
+
+const GoalSchema = z
+  .strictObject({ if: optCondition, ending: IdSchema.nullish() })
+  .refine((g) => !(g.if && g.ending), { message: '« if » et « ending » sont exclusifs' })
+  .transform((g): QuestGoal => ({ condition: g.if ?? null, ending: g.ending ?? null }));
+
 export const QuestSchema = z
-  .strictObject({ status, title: z.string(), description: optText, notes })
-  .transform((q): Omit<Quest, 'id' | 'source'> => ({ status: q.status, title: q.title, description: q.description }));
+  .strictObject({ status, title: z.string(), description: optText, notes, checkpoint: CheckpointSchema.nullish(), goal: GoalSchema.nullish() })
+  .transform((q): Omit<Quest, 'id' | 'source'> => ({
+    status: q.status,
+    title: q.title,
+    description: q.description,
+    checkpoint: q.checkpoint ?? null,
+    goal: q.goal ?? null,
+  }));
 /** `bible/quests.yaml` : id de quête → quête. */
 export const QuestsFileSchema = z.record(IdSchema, QuestSchema);
 
