@@ -11,11 +11,13 @@
  * Chaînage : tout objet / drapeau / variable / compteur / quête donné par un
  * checkpoint doit être produit à l'atteinte du but d'un segment **antérieur**
  * (ordre de déclaration dans `quests.yaml`) ou figurer dans `game.yaml → initial`.
+ * Les drapeaux / variables / compteurs écrits mais jamais lus par une condition sont
+ * ignorés (sans effet sur le jeu, non suivis par l'exploration).
  * Sinon : avertissement `given_never_obtained`.
  */
 import { createInitialState, evalCondition, startFromCheckpoint, type GameState } from '@scroum/engine';
 import type { Checkpoint, GameData, Id, Quest } from '@scroum/schema';
-import { analyzePlayability, type GoalSummary, type PlayabilityOptions, type ReachedEnding, type SoftlockGroup, type StopReason } from './playability';
+import { analyzePlayability, saturations, type GoalSummary, type PlayabilityOptions, type ReachedEnding, type SoftlockGroup, type StopReason } from './playability';
 import type { AnalyzerContext } from './types';
 
 export interface SegmentReport {
@@ -137,6 +139,9 @@ export function analyzeSegments(game: GameData, options: PlayabilityOptions = {}
 
   // --- chaînage : ce qui est donné doit avoir été obtenu avant
   const neverObtained: GivenIssue[] = [];
+  // Composantes que l'abstraction d'exploration ignore (écrites mais jamais lues) : non suivies
+  // par les états-buts, donc sans effet sur le jeu — inutile de les chaîner.
+  const dropped = new Set(saturations(game).filter((s) => s.dir === 'drop').map((s) => `${s.kind}:${s.id}`));
   const have = {
     item: new Set<Id>(Object.keys(initial.inventory)),
     flag: new Set<Id>(initial.flags),
@@ -156,6 +161,7 @@ export function analyzeSegments(game: GameData, options: PlayabilityOptions = {}
       ...cp.completed.map((id) => ({ quest: seg.quest, kind: 'quest' as const, id })),
     ];
     for (const g of given) {
+      if (dropped.has(`${g.kind}:${g.id}`)) continue;
       const ok =
         g.kind === 'quest' && cp.completed.includes(g.id)
           ? completedBefore.has(g.id)
