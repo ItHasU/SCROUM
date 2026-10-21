@@ -302,6 +302,8 @@ const CheckpointSchema = z
       .transform((inv) => (Array.isArray(inv) ? Object.fromEntries(inv.map((i) => [i, 1])) : inv)),
     quests: idList,
     completed: idList,
+    reveal: z.record(IdSchema, z.array(IdSchema)).default({}),
+    hide: z.record(IdSchema, z.array(IdSchema)).default({}),
     limits: z
       .strictObject({
         max_states: z.number().int().min(1).nullish(),
@@ -323,6 +325,8 @@ const CheckpointSchema = z
       inventory: c.inventory,
       quests: c.quests,
       completed: c.completed,
+      reveal: c.reveal,
+      hide: c.hide,
       limits: c.limits ? { max_states: c.limits.max_states ?? null, max_depth: c.limits.max_depth ?? null, time_limit: c.limits.time_limit ?? null } : null,
       dialogue: c.dialogue,
     }),

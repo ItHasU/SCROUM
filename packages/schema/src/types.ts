@@ -252,6 +252,10 @@ export interface Checkpoint {
   quests: Id[];
   /** Quêtes terminées (aussi débloquées). */
   completed: Id[];
+  /** Hotspots / sorties rendus visibles (scène → cibles), comme l'effet `reveal`. */
+  reveal: Record<Id, Id[]>;
+  /** Hotspots / sorties masqués (scène → cibles), comme l'effet `hide`. */
+  hide: Record<Id, Id[]>;
   /** Bornes propres au segment (`scroum validate`) ; `time_limit` en secondes. */
   limits: { max_states: number | null; max_depth: number | null; time_limit: number | null } | null;
   /** Dialogue lancé à la reprise. */
