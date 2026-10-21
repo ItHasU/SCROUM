@@ -8,10 +8,12 @@ import { fieldsFor, setField } from '../model/yamlEdit';
 import { on, requestPlay, state } from '../store';
 import { badge, refLink, statusSelect, toast } from './common';
 
+import { questTarget } from '../model/protocol';
 function sceneOfRef(ref: Ref | null): string | null {
   if (!ref) return null;
   if (ref.kind === 'scene') return ref.id;
   if (ref.kind === 'hotspot') return ref.parent ?? null;
+  if (ref.kind === 'quest' && state.game?.quests[ref.id]?.checkpoint) return questTarget(ref.id);
   return null;
 }
 

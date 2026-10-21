@@ -20,6 +20,7 @@ import {
   resolveLines,
   sceneView,
   start,
+  startFromCheckpoint,
   step,
   type Action,
   type ClassifyResult,
@@ -169,10 +170,14 @@ export class GameController {
 
   // ---------------------------------------------------------------- parties
 
-  /** Nouvelle partie, dans `scene` si elle existe (paramètre `?scene=`), sinon la scène de départ. */
-  newGame(scene?: Id | null): StepResult {
+  /**
+   * Nouvelle partie, dans `scene` si elle existe (paramètre `?scene=`), sinon la scène de départ.
+   * `quest` (paramètre `?quest=`) : reprise au `checkpoint` de la quête si elle en déclare un (prioritaire sur `scene`).
+   */
+  newGame(scene?: Id | null, quest?: Id | null): StepResult {
     const g = scene && this._game.scenes[scene] ? { ...this._game, meta: { ...this._game.meta, start_scene: scene } } : this._game;
-    const r = start(g, this.options.engine);
+    const cp = quest ? this._game.quests[quest]?.checkpoint : null;
+    const r = cp ? startFromCheckpoint(this._game, cp, this.options.engine) : start(g, this.options.engine);
     this._log = [];
     this.nextId = 1;
     this.sessionCounter = 0;

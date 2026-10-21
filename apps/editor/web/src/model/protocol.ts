@@ -73,7 +73,13 @@ export function parsePlayerMessage(data: unknown): PlayerMessage | null {
   return { scroum: 'state', state, lastEvents: events, intent };
 }
 
+/** Cible de « Jouer depuis ici » : un id de scène, ou `quest:<id>` pour le checkpoint d'une quête. */
+export const questTarget = (id: string): string => `quest:${id}`;
+export const questOfTarget = (target?: string | null): string | null => (target?.startsWith('quest:') ? target.slice(6) : null);
+
 /** URL du player en mode source directe, éventuellement positionné sur une scène. */
 export function playUrl(scene?: string | null): string {
+  const quest = questOfTarget(scene);
+  if (quest) return `/play/?source=/api&quest=${encodeURIComponent(quest)}`;
   return `/play/?source=/api${scene ? `&scene=${encodeURIComponent(scene)}` : ''}`;
 }

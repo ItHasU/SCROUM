@@ -32,12 +32,12 @@ export function attachPlaytest(ctrl: GameController, win: Window = window): () =
   });
   const onMessage = (ev: MessageEvent) => {
     if (ev.origin !== origin || ev.source !== parent) return;
-    const msg = ev.data as { scroum?: unknown; state?: unknown; scene?: unknown } | null;
+    const msg = ev.data as { scroum?: unknown; state?: unknown; scene?: unknown; quest?: unknown } | null;
     if (!msg || typeof msg !== 'object') return;
     if (msg.scroum === 'set_state' && msg.state && typeof msg.state === 'object') {
       ctrl.loadState(msg.state as GameState);
     } else if (msg.scroum === 'restart') {
-      ctrl.newGame(typeof msg.scene === 'string' ? msg.scene : null);
+      ctrl.newGame(typeof msg.scene === 'string' ? msg.scene : null, typeof msg.quest === 'string' ? msg.quest : null);
     }
   };
   win.addEventListener('message', onMessage);
