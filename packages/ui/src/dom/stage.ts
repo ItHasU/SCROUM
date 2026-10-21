@@ -26,6 +26,23 @@ export class StageView {
     });
   }
 
+  /** Hotspots apparus en cours de scène (reveal) : surlignés quelques secondes pour ne pas passer inaperçus. */
+  private seen: Set<string> | null = null;
+  private seenScene = '';
+  private readonly freshUntil = new Map<string, number>();
+
+  private trackFresh(sceneId: string, ids: string[]): void {
+    if (this.seen && this.seenScene === sceneId) {
+      for (const id of ids) if (!this.seen.has(id)) this.freshUntil.set(id, Date.now() + 6000);
+    } else this.freshUntil.clear();
+    this.seen = new Set(ids);
+    this.seenScene = sceneId;
+  }
+
+  private isFresh(id: string): boolean {
+    return (this.freshUntil.get(id) ?? 0) > Date.now();
+  }
+
   private closeMenu(): void {
     if (this.ctx.ui.hotspotMenu) {
       this.ctx.ui.hotspotMenu = null;
@@ -75,6 +92,7 @@ export class StageView {
     this.el.classList.toggle('blocked', blocked);
     const hotspots = visibleHotspots(ctrl.game, ctrl.state);
     const exits = visibleExits(ctrl.game, ctrl.state);
+    this.trackFresh(scene.id, hotspots.map((x) => x.id));
     const sel = ctrl.selected;
     replace(
       this.layer,
@@ -87,9 +105,15 @@ export class StageView {
             'data-hotspot': hs.id,
             'aria-label': hs.label,
             disabled: blocked,
-            class: sel ? 'target' : null,
+            class: [sel ? 'target' : null, this.isFresh(hs.id) ? 'fresh' : null].filter(Boolean).join(' ') || null,
             onclick: (ev: Event) => {
               ev.stopPropagation();
+              // Objet en main : un tap sur un hotspot déclenche directement `use` (SPEC §5.6).
+              if (ctrl.selected) {
+                this.ctx.ui.hotspotMenu = null;
+                ctrl.useSelectedOn(hs.id);
+                return;
+              }
               this.ctx.ui.hotspotMenu = this.ctx.ui.hotspotMenu === hs.id ? null : hs.id;
               this.renderMenu(hotspots);
             },

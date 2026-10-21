@@ -102,6 +102,8 @@ button, input { font: inherit; color: inherit; }
 .scroum.highlight .hs-label, .stage.flash .hs-label { display: block; }
 .stage.flash .hs { animation: hs-flash 1.6s ease-out; }
 @keyframes hs-flash { 0%, 60% { box-shadow: 0 0 0 4px #f2b54499; } 100% { box-shadow: none; } }
+.hs.fresh:not(.exit) { border: 2px solid var(--accent); background: #f2b54433; animation: hs-fresh 1.2s ease-in-out 5; }
+@keyframes hs-fresh { 0%, 100% { box-shadow: 0 0 0 0 #f2b544cc; } 50% { box-shadow: 0 0 0 8px #f2b54400; } }
 .hs.open { border-color: #fff; background: #ffffff30; }
 .hs.target:not(.exit) { border-color: var(--ok); }
 .stage.blocked .hs { pointer-events: none; opacity: 0.4; }
