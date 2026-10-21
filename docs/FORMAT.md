@@ -348,6 +348,33 @@ Une quête est **verrouillée** au départ (sauf `game.yaml → initial.quests`)
 **active** avec l'effet `unlock_quest`, **terminée** avec `complete_quest` (qui la
 débloque aussi si besoin). Le journal des quêtes du HUD montre les quêtes débloquées.
 
+**Point de reprise et but (optionnels, rétrocompatibles ; `formatVersion` inchangé).**
+Quand l'espace d'états du jeu entier devient trop grand pour la validation globale,
+chaque quête peut déclarer où elle commence et où elle finit : `scroum validate` explore
+alors chaque quête isolément (§14) et le playtest peut démarrer à son début.
+
+```yaml
+recuperer_huile:
+  title: "Trouver de l'huile"
+  checkpoint:                    # début de la quête : fusionné PAR-DESSUS game.yaml → initial
+    scene: port                  # défaut : start_scene (on_enter exécuté, comme au démarrage)
+    flags: [phare_visite]        # drapeaux levés (union avec initial)
+    vars: { confiance: 2 }       # valeurs imposées (écrasent initial)
+    counters: { courage: 3 }     # valeurs imposées (écrasent la valeur initiale du compteur)
+    inventory: [meche]           # objets donnés automatiquement : liste ou { meche: 1 }
+    quests: [rallumer_phare]     # quêtes débloquées
+    completed: [trouver_meche]   # quêtes déjà terminées (aussi débloquées)
+    dialogue: sam_accueil        # optionnel : dialogue lancé à la reprise (ou { id, node })
+    limits: { max_states: 300000, max_depth: 1000, time_limit: 60 }   # bornes propres au segment
+  goal:                          # fin de la quête ; défaut : la quête est « completed »
+    if: { flag: huile_obtenue }  # une condition…
+    # ending: phare_rallume      # …ou une fin (exclusifs)
+```
+
+`checkpoint` et `goal` sont indépendants (un `goal` sans `checkpoint` est ignoré tant que
+la quête n'a pas de point de reprise). Les références (scène, objets, compteurs, quêtes,
+dialogue, nœud, fin, condition) sont vérifiées par le niveau « cohérence ».
+
 ### Gags (`bible/gags.yaml`)
 
 Réservoir d'idées pour l'écriture (non utilisé par le moteur).
@@ -918,7 +945,7 @@ Toute référence à un asset (`background`, `avatar`, `portrait`, `icon`, `imag
 ## 14. Validation (`scroum validate`)
 
 ```
-pnpm scroum validate [chemin] [--json] [--quiet] [--no-playability] [--path-out f.json]
+pnpm scroum validate [chemin] [--json] [--quiet] [--no-playability] [--global] [--path-out f.json]
                      [--max-states N] [--max-depth N] [--time-limit S]
 ```
 
@@ -960,6 +987,32 @@ Niveaux, dans l'ordre (un niveau en erreur peut empêcher les suivants) :
    les chemins rejouables (fin win, fins, soft-locks : actions moteur, formes
    courtes, scénarios `runScenario`) ; `--no-playability` désactive ce niveau ;
    `--json` ajoute la clé `playability`.
+
+   **Validation par quête (segments).** Dès qu'une quête de `bible/quests.yaml` déclare un
+   `checkpoint` (§4), la jouabilité se valide **quête par quête** :
+   - pour chaque quête avec `checkpoint`, BFS depuis l'état forgé (`initial` + checkpoint,
+     scène du checkpoint jouée) jusqu'au `goal` (défaut : quête `completed` ; un état-but
+     est terminal). Rapport par quête : but atteignable (plus court chemin) ou
+     `quest_goal_unreachable` (erreur ; `quest_goal_not_found` en avertissement si
+     l'exploration est incomplète), *soft-locks* du segment (`softlock`, états d'où le but
+     est inatteignable ; les `game_over` sont exclus), exploration complète ou non
+     (`segment_incomplete`, avertissement). Bornes par segment : celles de la ligne de
+     commande (mêmes défauts), surchargées par `checkpoint.limits` ;
+   - **chaînage** : tout objet / drapeau / variable / compteur / quête donné
+     automatiquement par un checkpoint doit être produit à l'atteinte du but d'un segment
+     **antérieur** (ordre de déclaration dans `quests.yaml`, sur au moins un chemin
+     exploré) ou figurer dans `initial` ; sinon avertissement `given_never_obtained`
+     (les quantités ne sont pas comparées ; un segment antérieur incomplet peut donner un
+     faux positif, le message le signale). `checkpoint_invalid` : le checkpoint ne peut pas
+     être joué ; `final_unreachable` : ni le but de la dernière quête ni une fin `win` ne
+     sont atteints par les segments ;
+   - le **BFS global est omis** (le verdict vient des segments) ; `--global` le lance
+     quand même avec les bornes habituelles : son éventuelle incomplétude n'est alors
+     qu'une information (résumé), mais un problème certain qu'il prouve reste une erreur.
+     Sans aucun `checkpoint`, comportement inchangé (BFS global seul) ;
+   - le résumé de la CLI liste les quêtes (états, durée, verdict) ; `--json` ajoute la
+     clé `segments` ; `--path-out` ajoute `segments[]` (chemin vers le but et soft-locks
+     de chaque quête, avec `startState` à fournir à `runScenario(…, { initialState })`).
 
 ---
 
