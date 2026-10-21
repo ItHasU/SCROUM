@@ -124,3 +124,14 @@ describe('évolutions du format dans l’UI', () => {
     expect(controller.state.ending?.id).toBe('fin');
   });
 });
+
+describe('service worker du player', () => {
+  const sw = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../apps/player/public/sw.js'), 'utf8');
+  it("ne sert jamais un script ou un zip en cache d'abord (vieux lecteur figé)", () => {
+    expect(sw).not.toMatch(/caches\.match\(req\)\.then\(\(hit\) => \{/);
+    expect(sw).toMatch(/fetch\(req\)\s*\.then/);
+    expect(sw).toMatch(/skipWaiting/);
+    expect(sw).toMatch(/clients\.claim/);
+    expect(sw).not.toContain("'scroum-v1'");
+  });
+});

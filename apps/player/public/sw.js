@@ -1,8 +1,8 @@
 /* Service worker SCROUM : cache de l'app shell, hors-ligne une fois chargé.
- * - navigations : réseau d'abord, repli sur le cache (index.html) ;
- * - autres GET (scripts, styles, images, zips de jeu) : cache d'abord, mise à jour en arrière-plan ;
+ * - tout GET (navigations, scripts, styles, zips de jeu) : réseau d'abord, repli sur le cache hors-ligne.
+ *   Jamais de cache d'abord : un vieux lecteur gardé en cache ne doit pas jouer un jeu récent de travers ;
  * - jamais de cache pour /api/ et /events (mode source directe de l'éditeur). */
-const CACHE = 'scroum-v1';
+const CACHE = 'scroum-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -33,17 +33,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(
-    caches.match(req).then((hit) => {
-      const net = fetch(req)
-        .then((res) => {
-          if (res.ok && (res.type === 'basic' || res.type === 'cors')) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => hit);
-      return hit || net;
-    }),
+    fetch(req)
+      .then((res) => {
+        if (res.ok && (res.type === 'basic' || res.type === 'cors')) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req).then((hit) => hit || Response.error())),
   );
 });
